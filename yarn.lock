@@ -134,6 +134,11 @@
     "@rollup/pluginutils" "^3.1.0"
     "resolve" "^1.17.0"
 
+"@rollup/plugin-virtual@^3.0.1":
+  "integrity" "sha512-fK8O0IL5+q+GrsMLuACVNk2x21g3yaw+sG2qn16SnUd3IlBsQyvWxLMGHmCmXRMecPjGRSZ/1LmZB4rjQm68og=="
+  "resolved" "https://registry.npmjs.org/@rollup/plugin-virtual/-/plugin-virtual-3.0.1.tgz"
+  "version" "3.0.1"
+
 "@rollup/pluginutils@^3.1.0":
   "integrity" "sha512-GksZ6pr6TpIjHm8h9lSQ8pi8BE9VeubNT0OMJ3B5uZJ8pz73NPiqOtCog/x2/QzM1ENChPKxMDhiQuRHsqc+lg=="
   "resolved" "https://registry.npmjs.org/@rollup/pluginutils/-/pluginutils-3.1.0.tgz"

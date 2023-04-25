@@ -321,15 +321,19 @@ export default async function getBestWorkerScope() {
 			})
 		})
 
-		const scriptSource = './creep.js'
+		const scriptSource = './creep.js';
+		let workerScope;
+		
+		/*
 		WORKER_NAME = 'ServiceWorkerGlobalScope'
 		WORKER_TYPE = 'service' // loads fast but is not available in frames
-		let workerScope = await getServiceWorker({ scriptSource }).catch((error) => {
+		workerScope = await getServiceWorker({ scriptSource }).catch((error) => {
 			captureError(error)
 			console.error(error.message)
 			return
 		})
-
+		*/
+		
 		if (!(workerScope || {}).userAgent) {
 			WORKER_NAME = 'SharedWorkerGlobalScope'
 			WORKER_TYPE = 'shared' // no support in Safari, iOS, and Chrome Android
