@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html>
-    <h1>PU</h1>
+    <h1>VOODOO</h1>
+    <p>Look at source to see how to run / install / use</p>
 </html>
 
 
 <script type="module">
 
-    //import { voodoo } from  "./dist/index.mjs";
+    import { voodoo } from  "./voodoo.min.mjs";
 
-    //console.log({whatever});
+    const fingerprint = await voodoo();
+
+    console.log({fingerprint});
 
 </script>

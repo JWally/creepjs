@@ -269,7 +269,7 @@ export default async function getBestWorkerScope() {
 				return resolve(null)
 			}, 3000)
 
-			const dedicatedWorker = ask(() => new Worker(scriptSource))
+			const dedicatedWorker = ask(() => new Worker(workerBlob))
 			if (!hasConstructor(dedicatedWorker, 'Worker')) return resolve(null)
 
 			dedicatedWorker.onmessage = (event) => {
@@ -283,7 +283,7 @@ export default async function getBestWorkerScope() {
 				return resolve(null)
 			}, 3000)
 
-			const sharedWorker = ask(() => new SharedWorker(scriptSource))
+			const sharedWorker = ask(() => new SharedWorker(workerBlob))
 			if (!hasConstructor(sharedWorker, 'SharedWorker')) return resolve(null)
 
 			sharedWorker.port.start()

@@ -23,14 +23,24 @@ export default function miscTask() {
           return;
         }
 
-        const workerBlob = `URL.createObjectURL(new Blob([atob('${workerScriptBase64}')], { type: 'text/javascript' }))`;
+        const workerBlob = `const workerBlob = URL.createObjectURL(new Blob([atob('${workerScriptBase64}')], { type: 'text/javascript' }))`;
 
 
         // Replace the target string with the new one
+        /*
         let updatedContent = data.replace(
           /Worker\(scriptSource\)/g,
           `Worker(${workerBlob})`
         );
+        */
+
+        let updatedContent = `
+        ${workerBlob}
+
+        /// DATA
+
+        ${data}
+        `;
 
 
         // Write the updated content back to the file

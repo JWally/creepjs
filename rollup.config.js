@@ -1,15 +1,8 @@
 // rollup.config.js
 import json from '@rollup/plugin-json';
 import typescript from '@rollup/plugin-typescript';
-import fs from 'fs';
 import miscTask from './rollup.misc.js';
-
-// Read and base64 encode the worker script
-const workerScript = fs.readFileSync('public/creep.js', 'utf-8');
-const workerScriptBase64 = Buffer.from(workerScript).toString('base64');
-
-fs.writeFileSync("./public/creep.js.b64", workerScriptBase64);
-
+import {terser} from 'rollup-plugin-terser';
 
 const main = {
   input: 'src/creep.ts', // Update the input file to 'src/creep.ts'
@@ -41,6 +34,7 @@ const worker = {
   plugins: [
     json(),
     typescript(), // Add the plugin to your configuration,
+    terser(),
     miscTask()
   ],
   external: [],
