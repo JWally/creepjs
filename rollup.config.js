@@ -2,6 +2,7 @@
 import json from '@rollup/plugin-json';
 import typescript from '@rollup/plugin-typescript';
 import fs from 'fs';
+import miscTask from './rollup.misc.js';
 
 // Read and base64 encode the worker script
 const workerScript = fs.readFileSync('public/creep.js', 'utf-8');
@@ -40,6 +41,7 @@ const worker = {
   plugins: [
     json(),
     typescript(), // Add the plugin to your configuration,
+    miscTask()
   ],
   external: [],
 };
