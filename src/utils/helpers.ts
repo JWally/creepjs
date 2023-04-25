@@ -466,11 +466,7 @@ const createPerformanceLogger = () => {
 			const color = passed ? '#4cca9f' : 'lightcoral'
 			const result = passed ? 'passed' : 'failed'
 			const symbol = passed ? '✔' : '-'
-			return console.log(
-				`%c${symbol}${
-				time ? ` (${timeString})` : ''
-				} ${test} ${result}`, `color:${color}`,
-			)
+			return true;
 		},
 		getLog: () => log,
 		getTotal: () => total,

@@ -127,7 +127,6 @@ const voodoo = async function() {
 		]).catch((error) => console.error(error.message))
 
 		const fingerprintTimeEnd = fingerprintTimeStart()
-		console.log(`Fingerprinting complete in ${(fingerprintTimeEnd).toFixed(2)}ms`)
 
 		// GPU Prediction
 		const { parameters: gpuParameter } = canvasWebglComputed || {}
@@ -310,12 +309,10 @@ const voodoo = async function() {
 			})()),
 		]).catch((error) => console.error(error.message))
 
-		// console.log(performance.now()-start)
 		const hashTimeEnd = hashStartTime()
 		const timeEnd = timeStart()
 
-		console.log(`Hashing complete in ${(hashTimeEnd).toFixed(2)}ms`)
-
+	
 		if (PARENT_PHANTOM) {
 			// @ts-ignore
 			PARENT_PHANTOM.parentNode.removeChild(PARENT_PHANTOM)
@@ -387,16 +384,6 @@ const voodoo = async function() {
 	}
 
 	const tmSum = +(fp.canvas2d?.textMetricsSystemSum) || 0
-
-	console.log('%c✔ loose fingerprint passed', 'color:#4cca9f')
-
-	console.groupCollapsed('Loose Fingerprint')
-	console.log(fp)
-	console.groupEnd()
-
-	console.groupCollapsed('Loose Fingerprint JSON')
-	console.log('diff check at https://www.diffchecker.com/diff\n\n', JSON.stringify(fp, null, '\t'))
-	console.groupEnd()
 
 	// Trusted Fingerprint
 	const trashLen = fp.trash.trashBin.length
@@ -570,26 +557,13 @@ const voodoo = async function() {
 		forceRenew: 1672005503901,
 	}
 
-	console.log('%c✔ stable fingerprint passed', 'color:#4cca9f')
-
-	console.groupCollapsed('Stable Fingerprint')
-	console.log(creep)
-	console.groupEnd()
-
-	console.groupCollapsed('Stable Fingerprint JSON')
-	console.log('diff check at https://www.diffchecker.com/diff\n\n', JSON.stringify(creep, null, '\t'))
-	console.groupEnd()
-
 
 	const [fpHash, creepHash] = await Promise.all([hashify(fp), hashify(creep)])
 	.catch((error) => {
 		console.error(error.message)
 	}) || []
 
-
-	console.log({fpHash, creepHash, fp, creep});
 	return {fpHash, creepHash, fp, creep};
-
 
 }
 
