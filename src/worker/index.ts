@@ -297,7 +297,7 @@ export default async function getBestWorkerScope() {
 		const getServiceWorker = ({ scriptSource }) => new Promise((resolve) => {
 			const giveUpOnWorker = setTimeout(() => {
 				return resolve(null)
-			}, 4000)
+			}, 400)
 
 			if (!ask(() => navigator.serviceWorker.register)) return resolve(null)
 

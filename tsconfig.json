@@ -1,28 +1,13 @@
 {
   "compilerOptions": {
-    "rootDir": "./src",
-    "outDir": "./public",
-    "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictPropertyInitialization": true,
-    "strictBindCallApply": true,
-    "noImplicitThis": true,
-    "noImplicitReturns": true,
-    "alwaysStrict": true,
-    "esModuleInterop": true,
-    "declaration": false,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "node"
+    "target": "ESNext",
+    "strict": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "outDir": "dist"
   },
-  "include": [
-    "./src/**/*"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
 }

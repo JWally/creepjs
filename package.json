@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "creepy device and browser fingerprinting",
   "main": "server.js",
+  "module": "dist/index.mjs",
   "scripts": {
+    "pack": "rollup -c",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
     "watch:dev": "npx rollup --config rollup.config.js -w & nodemon -d 3 ./server.js localhost 8000",
@@ -26,8 +28,8 @@
     "url": "https://github.com/abrahamjuliot/CreepJS/issues"
   },
   "homepage": "https://github.com/abrahamjuliot/CreepJS#readme",
-  "dependencies": {},
   "devDependencies": {
+    "@rollup/plugin-json": "^6.0.0",
     "@rollup/plugin-typescript": "^8.3.3",
     "@typescript-eslint/eslint-plugin": "^5.30.7",
     "@typescript-eslint/parser": "^5.30.7",
@@ -43,6 +45,9 @@
     "postcss-cli": "^8.3.1",
     "rollup": "^2.77.0",
     "terser": "^5.14.2",
-    "typescript": "^4.7.4"
+    "ts-loader": "^9.4.2",
+    "typescript": "^4.7.4",
+    "webpack": "^5.72.1",
+    "webpack-cli": "^4.9.2"
   }
 }
