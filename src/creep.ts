@@ -557,6 +557,8 @@ const voodoo = async function() {
 		forceRenew: 1672005503901,
 	}
 
+	delete creep.cssMedia.screenQuery;
+    delete creep.screen;
 
 	const [fpHash, creepHash] = await Promise.all([hashify(fp), hashify(creep)])
 	.catch((error) => {

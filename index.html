@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html>
-    <h1>VOODOO</h1>
-    <p>Look at source to see how to run / install / use</p>
+    <h1>WELCOME BACK</h1>
+    <h3 id="creep"></h3>
+    <h3 id="creepjr"></h3>
+    <h3 id="keyri"></h3>
+    <textarea id="txArea" style="width: 100%; height: 500px;"></textarea>
 </html>
 
-
+<script src="./keyri.fp.min.js"></script>
 <script type="module">
 
     import { voodoo } from  "./voo.doo.min.mjs";
@@ -12,5 +15,36 @@
     const fingerprint = await voodoo();
 
     console.log({fingerprint});
+
+    document.querySelector("#creep").innerHTML = `CREEP: ${fingerprint.creepHash}`;
+
+    // Delete screen from creep
+    let creep = fingerprint.creep;
+
+    delete creep.cssMedia.screenQuery;
+    delete creep.screen;
+
+    document.querySelector("#txArea").value = JSON.stringify(creep, null, 2);
+
+    creep = JSON.stringify(creep);
+
+    creep = await new TextEncoder().encode(creep);
+
+    creep = await crypto.subtle.digest('SHA-256', creep);
+
+    creep = Array.from(new Uint8Array(creep)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    document.querySelector("#creepjr").innerHTML = `CREEP-Jr: ${creep}`;
+
+    const device = new Device();
+
+    await device.load();
+
+    const mainParams = device.getMainParams();
+
+    const deviceHash = device.createFingerprintHash();
+
+    document.querySelector("#keyri").innerHTML = `KEYRI: ${deviceHash}`;
+
 
 </script>
