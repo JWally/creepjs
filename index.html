@@ -21,10 +21,16 @@
     // Delete screen from creep
     let creep = fingerprint.creep;
 
-    delete creep.cssMedia.screenQuery;
-    delete creep.screen;
+    const output = Object.entries(fingerprint.fp).reduce((acc, [key, value]) => {
+        if(value["$hash"]){
+            acc[key] = value["$hash"];
+        }
+        return acc;
+    }, {});
 
-    document.querySelector("#txArea").value = JSON.stringify(creep, null, 2);
+    document.querySelector("#txArea").value = JSON.stringify(output, null, 2);
+
+    delete creep.screen;
 
     creep = JSON.stringify(creep);
 
