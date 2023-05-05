@@ -557,9 +557,16 @@ const voodoo = async function() {
 		forceRenew: 1672005503901,
 	}
 
+	//
+	// This makes the FP too volatile...
+	//
 	delete creep.cssMedia.screenQuery;
     delete creep.screen;
 
+	//
+	// If the asshole hitting us used a Proxy wrapper
+	// on navigator and should get lit the fuck up.
+	//
 	let proxyNavigatorUsed;
 	try{
 		proxyNavigatorUsed = Reflect.setPrototypeOf(navigator, Object.create(navigator));
@@ -567,9 +574,18 @@ const voodoo = async function() {
 		proxyNavigatorUsed = true;
 	}
 
+
 	if(proxyNavigatorUsed){
 		fp.headless.headless.webDriverIsOn = true;
+		fp.lies.data["Navigator.Proxy.Used"] = [true];
+		fp.lies.totalLies += 50;
+		fp.headless.stealthRating = 100;
 	} 
+
+	if(fp.headless.headless.webDriverIsOn){
+		fp.headless.headlessRating = 100;
+		fp.headless.likeHeadlessRating = 100;
+	}
 
 
 	const [fpHash, creepHash] = await Promise.all([hashify(fp), hashify(creep)])
