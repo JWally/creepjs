@@ -560,6 +560,18 @@ const voodoo = async function() {
 	delete creep.cssMedia.screenQuery;
     delete creep.screen;
 
+	let proxyNavigatorUsed;
+	try{
+		proxyNavigatorUsed = Reflect.setPrototypeOf(navigator, Object.create(navigator));
+	} catch(e){
+		proxyNavigatorUsed = true;
+	}
+
+	if(proxyNavigatorUsed){
+		fp.headless.headless.webDriverIsOn = true;
+	} 
+
+
 	const [fpHash, creepHash] = await Promise.all([hashify(fp), hashify(creep)])
 	.catch((error) => {
 		console.error(error.message)
