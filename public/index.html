@@ -7,9 +7,10 @@
 <script type="module">
 
     import { voodoo } from  "./index.mjs";
-	console.log(document.currentScript);
 
+    console.time("voodoo");
     let that = await voodoo();
+    console.timeEnd("voodoo");
 
 	console.log({that});
 
