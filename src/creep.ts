@@ -618,7 +618,15 @@ const voodoo = async function() {
 		console.error(error.message)
 	}) || []
 
-	return {fpHash, creepHash, fp, creep};
+	let lieProbability;
+	
+	try{
+		lieProbability = await probability(fp);
+	} catch(err){
+		lieProbability = undefined;
+	}
+
+	return {fpHash, creepHash, fp, creep, lieProbability};
 
 }
 
