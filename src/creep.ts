@@ -1,4 +1,5 @@
 /* eslint-disable linebreak-style */
+import {probability} from './lies/probability.mjs';
 import getOfflineAudioContext, { audioHTML } from './audio'
 import getCanvas2d, { canvasHTML } from './canvas'
 import getCSS, { cssHTML } from './css'
