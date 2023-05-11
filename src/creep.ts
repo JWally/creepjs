@@ -413,6 +413,31 @@ const voodoo = async function() {
 		)
 	}
 
+
+	// Clean up the lies in the WorkerNavigator Section
+	// in the dirtiest way possible...
+	//
+	const workerProtoLies = Object.keys(fp.workerScope.lies.proto);
+
+	//
+	// if protoLies.length === "lied"
+	// set lied to false
+	//
+	if(workerProtoLies.length === fp.workerScope.lied){
+		fp.workerScope.lied = false;
+	}
+
+	//
+	// Remove the lies from the totals
+	//
+	for(let i = 0; i < workerProtoLies.length; i++){
+		const lieKey = workerProtoLies[i];
+		const lieLength = fp.workerScope.lies.proto[lieKey].length;
+		delete fp.workerScope.lies.proto[lieKey];
+		delete fp.lies.data[lieKey];
+		fp.lies.totalLies -= lieLength;
+	}
+
 	const creep = {
 		navigator: (
 			!fp.navigator || fp.navigator.lied ? undefined : {
