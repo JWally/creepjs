@@ -1,6 +1,5 @@
 /* eslint-disable linebreak-style */
 import {probability} from './lies/probability.mjs';
-import {crypto_cookie} from "./crypto-cookie/index.mjs";
 import getOfflineAudioContext from './audio'
 import getCanvas2d from './canvas'
 import getCSS from './css'
@@ -624,22 +623,12 @@ const voodoo = async function() {
 		lieProbability = undefined;
 	}
 
-	// CryptoCookie
-	let cryptoCookieReturnObject;
-	try{
-		cryptoCookieReturnObject = await crypto_cookie();
-	} catch(e){
-
-	}
-
 	return {
 		fpHash, 
 		creepHash, 
 		fp, 
 		creep, 
-		lieProbability, 
-		cryptoCookie: cryptoCookieReturnObject?.cryptoCookie, 
-		cryptoCookieProof: cryptoCookieReturnObject?.cryptoCookieProof
+		lieProbability
 	};
 
 }
