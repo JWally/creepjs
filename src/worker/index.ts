@@ -269,7 +269,7 @@ export default async function getBestWorkerScope() {
 				return resolve(null)
 			}, 3000)
 
-			const dedicatedWorker = ask(() => new Worker(workerBlob))
+			const dedicatedWorker = ask(() => new Worker(scriptSource))
 			if (!hasConstructor(dedicatedWorker, 'Worker')) return resolve(null)
 
 			dedicatedWorker.onmessage = (event) => {
@@ -283,7 +283,7 @@ export default async function getBestWorkerScope() {
 				return resolve(null)
 			}, 3000)
 
-			const sharedWorker = ask(() => new SharedWorker(workerBlob))
+			const sharedWorker = ask(() => new SharedWorker(scriptSource))
 			if (!hasConstructor(sharedWorker, 'SharedWorker')) return resolve(null)
 
 			sharedWorker.port.start()
@@ -321,10 +321,10 @@ export default async function getBestWorkerScope() {
 			})
 		})
 
-		const scriptSource = './creep.js';
+		const scriptSource = './Pu239.js';
 		let workerScope;
 		
-		/*
+		
 		WORKER_NAME = 'ServiceWorkerGlobalScope'
 		WORKER_TYPE = 'service' // loads fast but is not available in frames
 		workerScope = await getServiceWorker({ scriptSource }).catch((error) => {
@@ -332,7 +332,7 @@ export default async function getBestWorkerScope() {
 			console.error(error.message)
 			return
 		})
-		*/
+		
 		
 		if (!(workerScope || {}).userAgent) {
 			WORKER_NAME = 'SharedWorkerGlobalScope'

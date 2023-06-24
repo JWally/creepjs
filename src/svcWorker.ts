@@ -1,3 +1,3 @@
-import { voodoo } from "./creep";
+import { main } from "./creep";
 
-voodoo();
+main();

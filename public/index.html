@@ -1,20 +1,7 @@
 <!DOCTYPE html>
 <html>
-    <h1>CURRENT RUN CHECK</h1>
+    <head></head>
+    <body>
+        <iframe src="./iframe.html"></iframe>
+    </body>
 </html>
-
-
-<script type="module">
-
-    import { voodoo } from  "./index.mjs";
-
-    console.time("voodoo");
-    let that = await voodoo();
-    console.timeEnd("voodoo");
-
-	console.log({that});
-
-    let tmp = document.querySelector("h1").innerText;
-    document.querySelector("h1").innerText = `${tmp} : ${that.creepHash}`;
-
-</script>

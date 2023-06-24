@@ -5,7 +5,7 @@
   "main": "server.js",
   "module": "dist/index.mjs",
   "scripts": {
-    "pack": "rollup -c & terser ./public/index.mjs -o voodoo.min.js & .\\build.bat"
+    "pack": "rollup -c & .\\build.bat"
   },
   "repository": {
     "type": "git",

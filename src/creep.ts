@@ -30,7 +30,7 @@ import getWindowFeatures from './window'
 import getBestWorkerScope, { Scope, spawnWorker } from './worker'
 
 
-const voodoo = async function() {
+const main = async function() {
 	'use strict';
 
 	const scope = await spawnWorker()
@@ -633,4 +633,4 @@ const voodoo = async function() {
 
 }
 
-export { voodoo };
+export { main };
