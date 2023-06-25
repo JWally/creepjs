@@ -16,7 +16,7 @@ const main = {
   plugins: [
     json(),
     typescript(), // Add the plugin to your configuration
-    terser()
+
   ],
   external: [],
 };
@@ -34,7 +34,7 @@ const worker = {
   plugins: [
     json(),
     typescript(), // Add the plugin to your configuration,
-    terser(),
+
   ],
   external: [],
 };
