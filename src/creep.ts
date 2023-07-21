@@ -581,8 +581,8 @@ const main = async function() {
 	//
 	// This makes the FP too volatile...
 	//
-	delete creep.cssMedia.screenQuery;
-    delete creep.screen;
+	delete creep?.cssMedia?.screenQuery;
+    delete creep?.screen;
 
 	//
 	// If the asshole hitting us used a Proxy wrapper

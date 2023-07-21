@@ -8,13 +8,12 @@
 
     import { main } from  "./U235.mjs";
 
-    console.time("voodoo");
-    let that = await main();
-    console.timeEnd("voodoo");
+    main().then((that) => {
+        let tmp = document.querySelector("h1").innerText;
+        document.querySelector("h1").innerText = `${tmp} : ${that.creepHash}`;
+        console.log(that);
+    });
 
-	console.log({that});
 
-    let tmp = document.querySelector("h1").innerText;
-    document.querySelector("h1").innerText = `${tmp} : ${that.creepHash}`;
 
 </script>
