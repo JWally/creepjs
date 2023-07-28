@@ -41,7 +41,6 @@ const probability = async (fp) => {
   
     // Extra Headless Check. Driver on = BOT.
     if (
-      fp.navigator.system !== "Linux" &&
       fp.navigator?.userAgentData?.brands?.[0] == "Chromium"
     ) {
       prior = BayesTheorem(prior, 0.99, 0.01);
