@@ -1,4 +1,5 @@
 /* eslint-disable linebreak-style */
+import {removeDifferences} from './utils/removeDifferences.mjs';
 import {probability} from './lies/probability.mjs';
 import getOfflineAudioContext from './audio'
 import getCanvas2d from './canvas'
@@ -50,7 +51,7 @@ const main = async function() {
 		const timeStart = timer()
 		const fingerprintTimeStart = timer()
 		// @ts-ignore
-		const [
+		let [
 			workerScopeComputed,
 			voicesComputed,
 			offlineAudioContextComputed,
@@ -91,6 +92,68 @@ const main = async function() {
 			getResistance(),
 			getIntl(),
 		]).catch((error) => console.error(error.message))
+
+
+
+		let [
+			voicesComputed2,
+			offlineAudioContextComputed2,
+			canvasWebglComputed2,
+			canvas2dComputed2,
+			windowFeaturesComputed2,
+			htmlElementVersionComputed2,
+			cssComputed2,
+			cssMediaComputed2,
+			screenComputed2,
+			mathsComputed2,
+			consoleErrorsComputed2,
+			timezoneComputed2,
+			clientRectsComputed2,
+			fontsComputed2,
+			mediaComputed2,
+			svgComputed2,
+			resistanceComputed2,
+			intlComputed2,
+		] = await Promise.all([
+
+			getVoices(),
+			getOfflineAudioContext(),
+			getCanvasWebgl(),
+			getCanvas2d(),
+			getWindowFeatures(),
+			getHTMLElementVersion(),
+			getCSS(),
+			getCSSMedia(),
+			getScreen(),
+			getMaths(),
+			getConsoleErrors(),
+			getTimezone(),
+			getClientRects(),
+			getFonts(),
+			getMedia(),
+			getSVG(),
+			getResistance(),
+			getIntl(),
+		]).catch((error) => console.error(error.message))
+
+		voicesComputed = removeDifferences(voicesComputed, voicesComputed2);
+		offlineAudioContextComputed = removeDifferences(offlineAudioContextComputed, offlineAudioContextComputed2);
+		canvasWebglComputed = removeDifferences(canvasWebglComputed, canvasWebglComputed2);
+		canvas2dComputed = removeDifferences(canvas2dComputed, canvas2dComputed2);
+		windowFeaturesComputed = removeDifferences(windowFeaturesComputed, windowFeaturesComputed2);
+		htmlElementVersionComputed = removeDifferences(htmlElementVersionComputed, htmlElementVersionComputed2);
+		cssComputed = removeDifferences(cssComputed, cssComputed2);
+		cssMediaComputed = removeDifferences(cssMediaComputed, cssMediaComputed2);
+		screenComputed = removeDifferences(screenComputed, screenComputed2);
+		mathsComputed = removeDifferences(mathsComputed, mathsComputed2);
+		consoleErrorsComputed = removeDifferences(consoleErrorsComputed, consoleErrorsComputed2);
+		timezoneComputed = removeDifferences(timezoneComputed, timezoneComputed2);
+		clientRectsComputed = removeDifferences(clientRectsComputed, clientRectsComputed2);
+		fontsComputed = removeDifferences(fontsComputed, fontsComputed2);
+		mediaComputed = removeDifferences(mediaComputed, mediaComputed2);
+		svgComputed = removeDifferences(svgComputed, svgComputed2);
+		resistanceComputed = removeDifferences(resistanceComputed, resistanceComputed2);
+		intlComputed = removeDifferences(intlComputed, intlComputed2);
 
 		const navigatorComputed = await getNavigator(workerScopeComputed)
 			.catch((error) => console.error(error.message))

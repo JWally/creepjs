@@ -1,6 +1,51 @@
 (function () {
   'use strict';
 
+  function deepEqual(obj1, obj2) {
+    // Handle primitive types
+    if (typeof obj1 !== 'object' || obj1 === null || typeof obj2 !== 'object' || obj2 === null) {
+      return obj1 === obj2;
+    }
+
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+
+    if (keys1.length !== keys2.length) return false;
+
+    for (const key of keys1) {
+      if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key])) return false;
+    }
+
+    return true;
+  }
+
+  function removeDifferences(obj1, obj2) {
+    // If obj1 and obj2 are primitive types and equal, return obj1
+    if (typeof obj1 !== 'object' || obj1 === null) {
+      return deepEqual(obj1, obj2) ? obj1 : null;
+    }
+
+    // If obj1 is an array, handle it as an array
+    if (Array.isArray(obj1)) {
+      const result = [];
+      for (const key of Object.keys(obj1)) {
+        if (obj2.hasOwnProperty(key) && deepEqual(obj1[key], obj2[key])) {
+          result[key] = removeDifferences(obj1[key], obj2[key]);
+        }
+      }
+      return result;
+    }
+
+    // Default object handling
+    const result = {};
+    for (const key of Object.keys(obj1)) {
+      if (obj2.hasOwnProperty(key) && deepEqual(obj1[key], obj2[key])) {
+        result[key] = removeDifferences(obj1[key], obj2[key]);
+      }
+    }
+    return result;
+  }
+
   /**
    * Calculate the posterior probability using Bayes' theorem.
    * @param {number} prior - The prior probability.
@@ -7091,7 +7136,7 @@
           const timeStart = timer();
           const fingerprintTimeStart = timer();
           // @ts-ignore
-          const [workerScopeComputed, voicesComputed, offlineAudioContextComputed, canvasWebglComputed, canvas2dComputed, windowFeaturesComputed, htmlElementVersionComputed, cssComputed, cssMediaComputed, screenComputed, mathsComputed, consoleErrorsComputed, timezoneComputed, clientRectsComputed, fontsComputed, mediaComputed, svgComputed, resistanceComputed, intlComputed,] = await Promise.all([
+          let [workerScopeComputed, voicesComputed, offlineAudioContextComputed, canvasWebglComputed, canvas2dComputed, windowFeaturesComputed, htmlElementVersionComputed, cssComputed, cssMediaComputed, screenComputed, mathsComputed, consoleErrorsComputed, timezoneComputed, clientRectsComputed, fontsComputed, mediaComputed, svgComputed, resistanceComputed, intlComputed,] = await Promise.all([
               getBestWorkerScope(),
               getVoices(),
               getOfflineAudioContext(),
@@ -7112,6 +7157,44 @@
               getResistance(),
               getIntl(),
           ]).catch((error) => console.error(error.message));
+          let [voicesComputed2, offlineAudioContextComputed2, canvasWebglComputed2, canvas2dComputed2, windowFeaturesComputed2, htmlElementVersionComputed2, cssComputed2, cssMediaComputed2, screenComputed2, mathsComputed2, consoleErrorsComputed2, timezoneComputed2, clientRectsComputed2, fontsComputed2, mediaComputed2, svgComputed2, resistanceComputed2, intlComputed2,] = await Promise.all([
+              getVoices(),
+              getOfflineAudioContext(),
+              getCanvasWebgl(),
+              getCanvas2d(),
+              getWindowFeatures(),
+              getHTMLElementVersion(),
+              getCSS(),
+              getCSSMedia(),
+              getScreen(),
+              getMaths(),
+              getConsoleErrors(),
+              getTimezone(),
+              getClientRects(),
+              getFonts(),
+              getMedia(),
+              getSVG(),
+              getResistance(),
+              getIntl(),
+          ]).catch((error) => console.error(error.message));
+          voicesComputed = removeDifferences(voicesComputed, voicesComputed2);
+          offlineAudioContextComputed = removeDifferences(offlineAudioContextComputed, offlineAudioContextComputed2);
+          canvasWebglComputed = removeDifferences(canvasWebglComputed, canvasWebglComputed2);
+          canvas2dComputed = removeDifferences(canvas2dComputed, canvas2dComputed2);
+          windowFeaturesComputed = removeDifferences(windowFeaturesComputed, windowFeaturesComputed2);
+          htmlElementVersionComputed = removeDifferences(htmlElementVersionComputed, htmlElementVersionComputed2);
+          cssComputed = removeDifferences(cssComputed, cssComputed2);
+          cssMediaComputed = removeDifferences(cssMediaComputed, cssMediaComputed2);
+          screenComputed = removeDifferences(screenComputed, screenComputed2);
+          mathsComputed = removeDifferences(mathsComputed, mathsComputed2);
+          consoleErrorsComputed = removeDifferences(consoleErrorsComputed, consoleErrorsComputed2);
+          timezoneComputed = removeDifferences(timezoneComputed, timezoneComputed2);
+          clientRectsComputed = removeDifferences(clientRectsComputed, clientRectsComputed2);
+          fontsComputed = removeDifferences(fontsComputed, fontsComputed2);
+          mediaComputed = removeDifferences(mediaComputed, mediaComputed2);
+          svgComputed = removeDifferences(svgComputed, svgComputed2);
+          resistanceComputed = removeDifferences(resistanceComputed, resistanceComputed2);
+          intlComputed = removeDifferences(intlComputed, intlComputed2);
           const navigatorComputed = await getNavigator(workerScopeComputed)
               .catch((error) => console.error(error.message));
           // @ts-ignore
