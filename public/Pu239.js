@@ -68,7 +68,19 @@
       return Math.exp(log_p_h_given_e);
     }
 
-  const probability = async (fp) => {
+  const creepMap = {
+    canvas2d: 1,
+    canvasWebgl: 2,
+    css: 3,
+    cssMedia: 4,
+    fonts: 5,
+    media: 6,
+    navigator: 99,
+    offlineAudioContext: 18,
+    timezone: 18,
+  };
+
+  const probability = async (fp, creep) => {
     
       let prior = 0.1;
     
@@ -146,9 +158,13 @@
       }
     
       // //////////////////////////////////////////////////////////////////////////
-      // CC-AGE
+      // MISSING CREEPS
       // //////////////////////////////////////////////////////////////////////////
-    
+      for(let x in creepMap){
+        if(!creep[x]){
+          prior = BayesTheorem(prior, 0.9, 0.2);
+        }
+      }
     
       return prior;
     };
@@ -7567,7 +7583,7 @@
       let lieProbability;
       // Try Lie Probability
       try {
-          lieProbability = await probability(fp);
+          lieProbability = await probability(fp, creep);
       }
       catch (err) {
           lieProbability = undefined;

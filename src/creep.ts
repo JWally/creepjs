@@ -681,7 +681,7 @@ const main = async function() {
 	
 	// Try Lie Probability
 	try{
-		lieProbability = await probability(fp);
+		lieProbability = await probability(fp, creep);
 	} catch(err){
 		lieProbability = undefined;
 	}
