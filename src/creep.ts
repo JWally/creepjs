@@ -660,13 +660,23 @@ const main = async function() {
 
 
 	if(proxyNavigatorUsed){
-		fp.headless.headless.webDriverIsOn = true;
-		fp.lies.data["Navigator.Proxy.Used"] = [true];
-		fp.lies.totalLies += 50;
-		fp.headless.stealthRating = 100;
+		if(fp.headless){
+			fp.headless.headless.webDriverIsOn = true;
+			fp.lies.data["Navigator.Proxy.Used"] = [true];
+			fp.lies.totalLies += 50;
+			fp.headless.stealthRating = 100;
+		} else {
+			fp.headless = {
+				headless: {
+					webDriverIsOn : true
+				},
+				stealthRating: 100
+			}
+		}
+
 	} 
 
-	if(fp.headless.headless.webDriverIsOn){
+	if(fp?.headless?.headless.webDriverIsOn){
 		fp.headless.headlessRating = 100;
 		fp.headless.likeHeadlessRating = 100;
 	}
