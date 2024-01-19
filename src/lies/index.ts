@@ -120,11 +120,11 @@ function hasValidStack(err: any, reg: RegExp, i: number = 1) {
 	return reg.test(err.stack.split('\n')[i])
 }
 
-const AT_FUNCTION = /at Function\.toString /
-const AT_OBJECT = /at Object\.toString/
-const FUNCTION_INSTANCE = /at (Function\.)?\[Symbol.hasInstance\]/ // useful if < Chrome 102
-const PROXY_INSTANCE = /at (Proxy\.)?\[Symbol.hasInstance\]/ // useful if < Chrome 102
-const STRICT_MODE = /strict mode/
+let AT_FUNCTION = /at Function\.toString /
+let AT_OBJECT = /at Object\.toString/
+let FUNCTION_INSTANCE = /at (Function\.)?\[Symbol.hasInstance\]/ // useful if < Chrome 102
+let PROXY_INSTANCE = /at (Proxy\.)?\[Symbol.hasInstance\]/ // useful if < Chrome 102
+let STRICT_MODE = /strict mode/
 
 // API Function Test
 interface LiesConfig {

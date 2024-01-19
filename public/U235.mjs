@@ -65,22 +65,24 @@ function BayesTheorem(prior, p_e_given_h, p_e_given_not_h) {
     return Math.exp(log_p_h_given_e);
   }
 
-const creepMap = {
-  canvas2d: 1,
-  canvasWebgl: 2,
-  css: 3,
-  cssMedia: 4,
-  fonts: 5,
-  media: 6,
-  navigator: 99,
-  offlineAudioContext: 18,
-  timezone: 18,
+let variables = {
+  ["prior"]: 0.1
 };
 
-const probability = async (fp, creep) => {
-  
-    let prior = 0.1;
-  
+variables["creepMap"] = {
+  ["canvas2d"]: 1,
+  ["canvasWebgl"]: 2,
+  ["css"]: 3,
+  ["cssMedia"]: 4,
+  ["fonts"]: 5,
+  ["media"]: 6,
+  ["navigator"]: 99,
+  ["offlineAudioContext"]: 18,
+  ["timezone"]: 18,
+};
+
+variables["probability"] = async (fp, creep) => {
+ 
     // //////////////////////////////////////////////////////////////////////////
     // BOT CHECKS
     // //////////////////////////////////////////////////////////////////////////
@@ -88,21 +90,21 @@ const probability = async (fp, creep) => {
     // Check Like Headless
     for (let x in fp.headless.likeHeadless) {
       if (fp.headless.likeHeadless[x]) {
-        prior = BayesTheorem(prior, 0.65, 0.5);
+        variables["prior"] = BayesTheorem(variables["prior"], 0.65, 0.5);
       }
     }
   
     // Check headless
     for (let x in fp.headless.headless) {
       if (fp.headless.headless[x]) {
-        prior = BayesTheorem(prior, 0.65, 0.5);
+        variables["prior"] = BayesTheorem(variables["prior"], 0.65, 0.5);
       }
     }
   
     // Check Stealth
     for (let x in fp.headless.stealth) {
       if (fp.headless.stealth[x]) {
-        prior = BayesTheorem(prior, 0.65, 0.5);
+        variables["prior"] = BayesTheorem(variables["prior"], 0.65, 0.5);
       }
     }
   
@@ -112,14 +114,12 @@ const probability = async (fp, creep) => {
   
     // Extra Headless Check. Driver on = BOT.
     if (fp.headless.headless.webDriverIsOn) {
-      prior = BayesTheorem(prior, 0.99, 0.01);
+      variables["prior"] = BayesTheorem(variables["prior"], 0.99, 0.01);
     }
   
     // Extra Headless Check. Driver on = BOT.
-    if (
-      fp.navigator?.userAgentData?.brands?.[0] == "Chromium"
-    ) {
-      prior = BayesTheorem(prior, 0.99, 0.01);
+    if (fp.navigator?.userAgentData?.brands?.[0] == ["Chromium"][0]) {
+      variables["prior"] = BayesTheorem(variables["prior"], 0.99, 0.01);
     }
   
     // //////////////////////////////////////////////////////////////////////////
@@ -128,19 +128,19 @@ const probability = async (fp, creep) => {
     const lieCount = fp.lies.totalLies;
   
     if (lieCount < 20) {
-      prior = BayesTheorem(prior, 0.25, 0.65);
+      variables["prior"] = BayesTheorem(variables["prior"], 0.25, 0.65);
     }
   
     if (lieCount >= 20 && lieCount < 60) {
-      prior = BayesTheorem(prior, 0.65, 0.5);
+      variables["prior"] = BayesTheorem(variables["prior"], 0.65, 0.5);
     }
   
     if (lieCount >= 60 && lieCount < 100) {
-      prior = BayesTheorem(prior, 0.9, 0.25);
+      variables["prior"] = BayesTheorem(variables["prior"], 0.9, 0.25);
     }
   
     if (lieCount >= 100 && lieCount < 10_000) {
-      prior = BayesTheorem(prior, 0.9, 0.05);
+      variables["prior"] = BayesTheorem(variables["prior"], 0.9, 0.05);
     }
   
     // //////////////////////////////////////////////////////////////////////////
@@ -149,22 +149,23 @@ const probability = async (fp, creep) => {
     if (
       Object.keys(fp.resistance.extensionHashPattern).length == 0
     ) {
-      prior = BayesTheorem(prior, 0.3, 0.5);
+      variables["prior"] = BayesTheorem(variables["prior"], 0.3, 0.5);
     } else {
-      prior = BayesTheorem(prior, 0.5, 0.3);
+      variables["prior"] = BayesTheorem(variables["prior"], 0.5, 0.3);
     }
   
     // //////////////////////////////////////////////////////////////////////////
     // MISSING CREEPS
     // //////////////////////////////////////////////////////////////////////////
-    for(let x in creepMap){
+    for(let x in variables["creepMap"]){
       if(!creep[x]){
-        prior = BayesTheorem(prior, 0.9, 0.2);
+        variables["prior"] = BayesTheorem(variables["prior"], 0.9, 0.2);
       }
     }
   
-    return prior;
+    return variables["prior"];
   };
+  var probability = variables["probability"];
 
 // @ts-expect-error
 const IS_WORKER_SCOPE = !self.document && self.WorkerGlobalScope;
@@ -833,11 +834,11 @@ function hasValidStack(err, reg, i = 1) {
         return reg.test(err.message);
     return reg.test(err.stack.split('\n')[i]);
 }
-const AT_FUNCTION = /at Function\.toString /;
-const AT_OBJECT = /at Object\.toString/;
-const FUNCTION_INSTANCE = /at (Function\.)?\[Symbol.hasInstance\]/; // useful if < Chrome 102
-const PROXY_INSTANCE = /at (Proxy\.)?\[Symbol.hasInstance\]/; // useful if < Chrome 102
-const STRICT_MODE = /strict mode/;
+let AT_FUNCTION = /at Function\.toString /;
+let AT_OBJECT = /at Object\.toString/;
+let FUNCTION_INSTANCE = /at (Function\.)?\[Symbol.hasInstance\]/; // useful if < Chrome 102
+let PROXY_INSTANCE = /at (Proxy\.)?\[Symbol.hasInstance\]/; // useful if < Chrome 102
+let STRICT_MODE = /strict mode/;
 function queryLies({ scope, apiFunction, proto, obj, lieProps, }) {
     if (typeof apiFunction != 'function') {
         return {
