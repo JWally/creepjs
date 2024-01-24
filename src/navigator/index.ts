@@ -426,7 +426,7 @@ export default async function getNavigator(workerScope) {
 		return
 	}
 }
-
+/*
 export function navigatorHTML(fp) {
 	if (!fp.navigator) {
 		return `
@@ -604,3 +604,4 @@ export function navigatorHTML(fp) {
 	</div>
 	`
 }
+*/

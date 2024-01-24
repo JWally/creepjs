@@ -492,7 +492,7 @@ export default async function getCanvasWebgl() {
 		return
 	}
 }
-
+/*
 export function webglHTML(fp) {
 	if (!fp.canvasWebgl) {
 		return `
@@ -576,3 +576,4 @@ export function webglHTML(fp) {
 	</div>
 	`
 }
+*/

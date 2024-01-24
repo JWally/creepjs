@@ -478,7 +478,7 @@ export default async function getEngineFeatures({
 		return
 	}
 }
-
+/*
 export function featuresHTML(fp) {
 	if (!fp.features) {
 		return `
@@ -684,3 +684,4 @@ export function featuresHTML(fp) {
 	</div>
 	`
 }
+*/

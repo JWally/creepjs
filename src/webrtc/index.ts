@@ -283,7 +283,7 @@ export default async function getWebRTCData(): Promise<Record<string, unknown> |
 		connection.addEventListener('icecandidate', computeCandidate)
 	})
 }
-
+/*
 export function webrtcHTML(webRTC, mediaDevices) {
 	if (!webRTC && !mediaDevices) {
 		return `
@@ -405,3 +405,4 @@ export function webrtcHTML(webRTC, mediaDevices) {
 	</div>
 	`
 }
+*/

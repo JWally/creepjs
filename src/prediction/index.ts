@@ -1,5 +1,5 @@
 import { HTMLNote, patch, html } from '../utils/html';
-
+/*
 export function getBlankIcons() {
 	return `<span class="icon"></span><span class="icon"></span><span class="icon"></span>`
 }
@@ -38,7 +38,8 @@ export default function getPrediction({ hash, data }) {
 
 	return prediction
 }
-
+*/
+/*
 export function renderPrediction({
 	decryptionData,
 	crowdBlendingScore,
@@ -393,7 +394,9 @@ export function renderPrediction({
 	</div>
 	`)
 }
+*/
 
+/*
 export function predictionErrorPatch(error: string): void {
 	const el = document.getElementById('browser-detection')
 	if (!el) return
@@ -433,3 +436,4 @@ export function predictionErrorPatch(error: string): void {
 		</div>
 	`)
 }
+*/

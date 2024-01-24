@@ -185,7 +185,7 @@ export default function getCSSMedia() {
 	}
 }
 
-
+/*
 export function cssMediaHTML(fp) {
 	if (!fp.css) {
 		return `
@@ -236,3 +236,4 @@ export function cssMediaHTML(fp) {
 	</div>
 	`
 }
+*/

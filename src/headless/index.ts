@@ -192,7 +192,7 @@ export default async function getHeadlessFeatures({
 		return
 	}
 }
-
+/*
 export function headlessFeaturesHTML(fp) {
 	if (!fp.headless) {
 		return `
@@ -291,3 +291,4 @@ export function headlessFeaturesHTML(fp) {
 		</div>
 	</div>`
 }
+*/

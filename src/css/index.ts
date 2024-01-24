@@ -190,7 +190,7 @@ export default function getCSS() {
 		return
 	}
 }
-
+/*
 export function cssHTML(fp) {
 	if (!fp.css) {
 		return `
@@ -265,3 +265,4 @@ export function cssHTML(fp) {
 	</div>
 	`
 }
+*/

@@ -19,7 +19,7 @@ export default function getHTMLElementVersion() {
 		return
 	}
 }
-
+/*
 export function htmlElementVersionHTML(fp) {
 	if (!fp.htmlElementVersion) {
 		return `
@@ -49,3 +49,4 @@ export function htmlElementVersionHTML(fp) {
 	</div>
 	`
 }
+*/

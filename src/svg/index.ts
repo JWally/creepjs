@@ -137,7 +137,7 @@ export default async function getSVG() {
 		return
 	}
 }
-
+/*
 export function svgHTML(fp) {
 	if (!fp.svg) {
 		return `
@@ -179,3 +179,4 @@ export function svgHTML(fp) {
 	</div>
 	`
 }
+*/

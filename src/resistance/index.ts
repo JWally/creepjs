@@ -482,7 +482,7 @@ export default async function getResistance() {
 		return
 	}
 }
-
+/*
 export function resistanceHTML(fp) {
 	if (!fp.resistance) {
 		return `
@@ -556,3 +556,4 @@ export function resistanceHTML(fp) {
 	</div>
 	`
 }
+*/

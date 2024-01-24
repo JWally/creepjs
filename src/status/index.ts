@@ -207,7 +207,7 @@ export async function getStatus(): Promise<Status> {
     scriptSize,
   }
 }
-
+/*
 export function statusHTML(status: Status) {
   if (!status) {
     return `
@@ -300,3 +300,4 @@ export function statusHTML(status: Status) {
     </div>
 	`
 }
+*/

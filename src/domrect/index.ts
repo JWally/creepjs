@@ -351,7 +351,7 @@ export default async function getClientRects() {
 		return
 	}
 }
-
+/*
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function clientRectsHTML(fp: any) {
 	if (!fp.clientRects) {
@@ -422,3 +422,4 @@ export function clientRectsHTML(fp: any) {
 	</div>
 	`
 }
+*/

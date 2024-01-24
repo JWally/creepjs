@@ -42,7 +42,7 @@ export default function getWindowFeatures() {
 		return
 	}
 }
-
+/*
 export function windowFeaturesHTML(fp) {
 	if (!fp.windowFeatures) {
 		return `
@@ -72,3 +72,4 @@ export function windowFeaturesHTML(fp) {
 	</div>
 	`
 }
+*/

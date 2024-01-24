@@ -572,7 +572,7 @@ export default function getTimezone() {
 		return
 	}
 }
-
+/*
 export function timezoneHTML(fp) {
 	if (!fp.timezone) {
 		return `
@@ -606,3 +606,4 @@ export function timezoneHTML(fp) {
 	</div>
 	`
 }
+*/

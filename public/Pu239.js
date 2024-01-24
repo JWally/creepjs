@@ -170,6 +170,97 @@
     };
     var probability = variables["probability"];
 
+  const createErrorsCaptured = () => {
+      const errors = [];
+      return {
+          getErrors: () => errors,
+          captureError: (error, customMessage = '') => {
+              const type = {
+                  Error: true,
+                  EvalError: true,
+                  InternalError: true,
+                  RangeError: true,
+                  ReferenceError: true,
+                  SyntaxError: true,
+                  TypeError: true,
+                  URIError: true,
+                  InvalidStateError: true,
+                  SecurityError: true,
+              };
+              const hasInnerSpace = (s) => /.+(\s).+/g.test(s); // ignore AOPR noise
+              console.error(error); // log error to educate
+              const { name, message } = error;
+              const trustedMessage = (!hasInnerSpace(message) ? undefined :
+                  !customMessage ? message :
+                      `${message} [${customMessage}]`);
+              const trustedName = type[name] ? name : undefined;
+              errors.push({ trustedName, trustedMessage });
+              return undefined;
+          },
+      };
+  };
+  const errorsCaptured = createErrorsCaptured();
+  const { captureError } = errorsCaptured;
+  const attempt = (fn, customMessage = '') => {
+      try {
+          return fn();
+      }
+      catch (error) {
+          if (customMessage) {
+              return captureError(error, customMessage);
+          }
+          return captureError(error);
+      }
+  };
+  const caniuse = (fn, objChainList = [], args = [], method = false) => {
+      let api;
+      try {
+          api = fn();
+      }
+      catch (error) {
+          return undefined;
+      }
+      let i;
+      const len = objChainList.length;
+      let chain = api;
+      try {
+          for (i = 0; i < len; i++) {
+              const obj = objChainList[i];
+              chain = chain[obj];
+          }
+      }
+      catch (error) {
+          return undefined;
+      }
+      return (method && args.length ? chain.apply(api, args) :
+          method && !args.length ? chain.apply(api) :
+              chain);
+  };
+  // Log performance time
+  const timer = (logStart) => {
+      logStart && console.log(logStart);
+      let start = 0;
+      try {
+          start = performance.now();
+      }
+      catch (error) {
+          captureError(error);
+      }
+      return (logEnd) => {
+          let end = 0;
+          try {
+              end = performance.now() - start;
+              logEnd && console.log(`${logEnd}: ${end / 1000} seconds`);
+              return end;
+          }
+          catch (error) {
+              captureError(error);
+              return 0;
+          }
+      };
+  };
+  const getCapturedErrors = () => ({ data: errorsCaptured.getErrors() });
+
   // @ts-expect-error
   const IS_WORKER_SCOPE = !self.document && self.WorkerGlobalScope;
   // Detect Browser
@@ -627,110 +718,6 @@
       TIME_ZONE: false,
       WEBGL: false,
   };
-
-  // template views
-  function patch(oldEl, newEl, fn) {
-      if (!oldEl)
-          return null;
-      oldEl.parentNode?.replaceChild(newEl, oldEl);
-      return typeof fn === 'function' ? fn() : true;
-  }
-  function html(templateStr, ...expressionSet) {
-      const template = document.createElement('template');
-      template.innerHTML = templateStr.map((s, i) => `${s}${expressionSet[i] || ''}`).join('');
-      return document.importNode(template.content, true);
-  }
-
-  const createErrorsCaptured = () => {
-      const errors = [];
-      return {
-          getErrors: () => errors,
-          captureError: (error, customMessage = '') => {
-              const type = {
-                  Error: true,
-                  EvalError: true,
-                  InternalError: true,
-                  RangeError: true,
-                  ReferenceError: true,
-                  SyntaxError: true,
-                  TypeError: true,
-                  URIError: true,
-                  InvalidStateError: true,
-                  SecurityError: true,
-              };
-              const hasInnerSpace = (s) => /.+(\s).+/g.test(s); // ignore AOPR noise
-              console.error(error); // log error to educate
-              const { name, message } = error;
-              const trustedMessage = (!hasInnerSpace(message) ? undefined :
-                  !customMessage ? message :
-                      `${message} [${customMessage}]`);
-              const trustedName = type[name] ? name : undefined;
-              errors.push({ trustedName, trustedMessage });
-              return undefined;
-          },
-      };
-  };
-  const errorsCaptured = createErrorsCaptured();
-  const { captureError } = errorsCaptured;
-  const attempt = (fn, customMessage = '') => {
-      try {
-          return fn();
-      }
-      catch (error) {
-          if (customMessage) {
-              return captureError(error, customMessage);
-          }
-          return captureError(error);
-      }
-  };
-  const caniuse = (fn, objChainList = [], args = [], method = false) => {
-      let api;
-      try {
-          api = fn();
-      }
-      catch (error) {
-          return undefined;
-      }
-      let i;
-      const len = objChainList.length;
-      let chain = api;
-      try {
-          for (i = 0; i < len; i++) {
-              const obj = objChainList[i];
-              chain = chain[obj];
-          }
-      }
-      catch (error) {
-          return undefined;
-      }
-      return (method && args.length ? chain.apply(api, args) :
-          method && !args.length ? chain.apply(api) :
-              chain);
-  };
-  // Log performance time
-  const timer = (logStart) => {
-      logStart && console.log(logStart);
-      let start = 0;
-      try {
-          start = performance.now();
-      }
-      catch (error) {
-          captureError(error);
-      }
-      return (logEnd) => {
-          let end = 0;
-          try {
-              end = performance.now() - start;
-              logEnd && console.log(`${logEnd}: ${end / 1000} seconds`);
-              return end;
-          }
-          catch (error) {
-              captureError(error);
-              return 0;
-          }
-      };
-  };
-  const getCapturedErrors = () => ({ data: errorsCaptured.getErrors() });
 
   /* eslint-disable new-cap */
   // warm up while we detect lies
@@ -1750,6 +1737,1539 @@
   const { sendToTrash } = trashBin;
   const getTrash = () => ({ trashBin: trashBin.getBin() });
 
+  const AUDIO_TRAP = Math.random();
+  async function hasFakeAudio() {
+      const context = new OfflineAudioContext(1, 100, 44100);
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = 0;
+      oscillator.start(0);
+      context.startRendering();
+      return new Promise((resolve) => {
+          context.oncomplete = (event) => {
+              const channelData = event.renderedBuffer.getChannelData?.(0);
+              if (!channelData)
+                  resolve(false);
+              resolve('' + [...new Set(channelData)] !== '0');
+          };
+      }).finally(() => oscillator.disconnect());
+  }
+  async function getOfflineAudioContext() {
+      try {
+          const timer = createTimer();
+          await queueEvent(timer);
+          try {
+              // @ts-expect-error if unsupported
+              window.OfflineAudioContext = OfflineAudioContext || webkitOfflineAudioContext;
+          }
+          catch (err) { }
+          if (!window.OfflineAudioContext) {
+              logTestResult({ test: 'audio', passed: false });
+              return;
+          }
+          // detect lies
+          const channelDataLie = lieProps['AudioBuffer.getChannelData'];
+          const copyFromChannelLie = lieProps['AudioBuffer.copyFromChannel'];
+          let lied = (channelDataLie || copyFromChannelLie) || false;
+          const bufferLen = 5000;
+          const context = new OfflineAudioContext(1, bufferLen, 44100);
+          const analyser = context.createAnalyser();
+          const oscillator = context.createOscillator();
+          const dynamicsCompressor = context.createDynamicsCompressor();
+          const biquadFilter = context.createBiquadFilter();
+          // detect lie
+          const dataArray = new Float32Array(analyser.frequencyBinCount);
+          analyser.getFloatFrequencyData?.(dataArray);
+          const floatFrequencyUniqueDataSize = new Set(dataArray).size;
+          if (floatFrequencyUniqueDataSize > 1) {
+              lied = true;
+              const floatFrequencyDataLie = `expected -Infinity (silence) and got ${floatFrequencyUniqueDataSize} frequencies`;
+              documentLie(`AnalyserNode.getFloatFrequencyData`, floatFrequencyDataLie);
+          }
+          const values = {
+              ['AnalyserNode.channelCount']: attempt(() => analyser.channelCount),
+              ['AnalyserNode.channelCountMode']: attempt(() => analyser.channelCountMode),
+              ['AnalyserNode.channelInterpretation']: attempt(() => analyser.channelInterpretation),
+              ['AnalyserNode.context.sampleRate']: attempt(() => analyser.context.sampleRate),
+              ['AnalyserNode.fftSize']: attempt(() => analyser.fftSize),
+              ['AnalyserNode.frequencyBinCount']: attempt(() => analyser.frequencyBinCount),
+              ['AnalyserNode.maxDecibels']: attempt(() => analyser.maxDecibels),
+              ['AnalyserNode.minDecibels']: attempt(() => analyser.minDecibels),
+              ['AnalyserNode.numberOfInputs']: attempt(() => analyser.numberOfInputs),
+              ['AnalyserNode.numberOfOutputs']: attempt(() => analyser.numberOfOutputs),
+              ['AnalyserNode.smoothingTimeConstant']: attempt(() => analyser.smoothingTimeConstant),
+              ['AnalyserNode.context.listener.forwardX.maxValue']: attempt(() => {
+                  return caniuse(() => analyser.context.listener.forwardX.maxValue);
+              }),
+              ['BiquadFilterNode.gain.maxValue']: attempt(() => biquadFilter.gain.maxValue),
+              ['BiquadFilterNode.frequency.defaultValue']: attempt(() => biquadFilter.frequency.defaultValue),
+              ['BiquadFilterNode.frequency.maxValue']: attempt(() => biquadFilter.frequency.maxValue),
+              ['DynamicsCompressorNode.attack.defaultValue']: attempt(() => dynamicsCompressor.attack.defaultValue),
+              ['DynamicsCompressorNode.knee.defaultValue']: attempt(() => dynamicsCompressor.knee.defaultValue),
+              ['DynamicsCompressorNode.knee.maxValue']: attempt(() => dynamicsCompressor.knee.maxValue),
+              ['DynamicsCompressorNode.ratio.defaultValue']: attempt(() => dynamicsCompressor.ratio.defaultValue),
+              ['DynamicsCompressorNode.ratio.maxValue']: attempt(() => dynamicsCompressor.ratio.maxValue),
+              ['DynamicsCompressorNode.release.defaultValue']: attempt(() => dynamicsCompressor.release.defaultValue),
+              ['DynamicsCompressorNode.release.maxValue']: attempt(() => dynamicsCompressor.release.maxValue),
+              ['DynamicsCompressorNode.threshold.defaultValue']: attempt(() => dynamicsCompressor.threshold.defaultValue),
+              ['DynamicsCompressorNode.threshold.minValue']: attempt(() => dynamicsCompressor.threshold.minValue),
+              ['OscillatorNode.detune.maxValue']: attempt(() => oscillator.detune.maxValue),
+              ['OscillatorNode.detune.minValue']: attempt(() => oscillator.detune.minValue),
+              ['OscillatorNode.frequency.defaultValue']: attempt(() => oscillator.frequency.defaultValue),
+              ['OscillatorNode.frequency.maxValue']: attempt(() => oscillator.frequency.maxValue),
+              ['OscillatorNode.frequency.minValue']: attempt(() => oscillator.frequency.minValue),
+          };
+          const getRenderedBuffer = (context) => (new Promise((resolve) => {
+              const analyser = context.createAnalyser();
+              const oscillator = context.createOscillator();
+              const dynamicsCompressor = context.createDynamicsCompressor();
+              try {
+                  oscillator.type = 'triangle';
+                  oscillator.frequency.value = 10000;
+                  dynamicsCompressor.threshold.value = -50;
+                  dynamicsCompressor.knee.value = 40;
+                  dynamicsCompressor.attack.value = 0;
+              }
+              catch (err) { }
+              oscillator.connect(dynamicsCompressor);
+              dynamicsCompressor.connect(analyser);
+              dynamicsCompressor.connect(context.destination);
+              oscillator.start(0);
+              context.startRendering();
+              return context.addEventListener('complete', (event) => {
+                  try {
+                      dynamicsCompressor.disconnect();
+                      oscillator.disconnect();
+                      const floatFrequencyData = new Float32Array(analyser.frequencyBinCount);
+                      analyser.getFloatFrequencyData?.(floatFrequencyData);
+                      const floatTimeDomainData = new Float32Array(analyser.fftSize);
+                      if ('getFloatTimeDomainData' in analyser) {
+                          analyser.getFloatTimeDomainData(floatTimeDomainData);
+                      }
+                      return resolve({
+                          floatFrequencyData,
+                          floatTimeDomainData,
+                          buffer: event.renderedBuffer,
+                          compressorGainReduction: (
+                          // @ts-expect-error if unsupported
+                          dynamicsCompressor.reduction.value || // webkit
+                              dynamicsCompressor.reduction),
+                      });
+                  }
+                  catch (error) {
+                      return resolve(null);
+                  }
+              });
+          }));
+          await queueEvent(timer);
+          const [audioData, audioIsFake,] = await Promise.all([
+              getRenderedBuffer(new OfflineAudioContext(1, bufferLen, 44100)),
+              hasFakeAudio().catch(() => false),
+          ]);
+          const { floatFrequencyData, floatTimeDomainData, buffer, compressorGainReduction, } = audioData || {};
+          await queueEvent(timer);
+          const getSnapshot = (arr, start, end) => {
+              const collection = [];
+              for (let i = start; i < end; i++) {
+                  collection.push(arr[i]);
+              }
+              return collection;
+          };
+          const getSum = (arr) => !arr ? 0 : [...arr]
+              .reduce((acc, curr) => (acc += Math.abs(curr)), 0);
+          const floatFrequencyDataSum = getSum(floatFrequencyData);
+          const floatTimeDomainDataSum = getSum(floatTimeDomainData);
+          const copy = new Float32Array(bufferLen);
+          let bins = new Float32Array();
+          if (buffer) {
+              buffer.copyFromChannel?.(copy, 0);
+              bins = buffer.getChannelData?.(0) || [];
+          }
+          const copySample = getSnapshot([...copy], 4500, 4600);
+          const binsSample = getSnapshot([...bins], 4500, 4600);
+          const sampleSum = getSum(getSnapshot([...bins], 4500, bufferLen));
+          // detect lies
+          if (audioIsFake) {
+              lied = true;
+              documentLie('AudioBuffer', 'audio is fake');
+          }
+          // sample matching
+          const matching = '' + binsSample == '' + copySample;
+          const copyFromChannelSupported = ('copyFromChannel' in AudioBuffer.prototype);
+          if (copyFromChannelSupported && !matching) {
+              lied = true;
+              const audioSampleLie = 'getChannelData and copyFromChannel samples mismatch';
+              documentLie('AudioBuffer', audioSampleLie);
+          }
+          // sample uniqueness
+          const totalUniqueSamples = new Set([...bins]).size;
+          if (totalUniqueSamples == bufferLen) {
+              const audioUniquenessTrash = `${totalUniqueSamples} unique samples of ${bufferLen} is too high`;
+              sendToTrash('AudioBuffer', audioUniquenessTrash);
+          }
+          // sample noise factor
+          const getRandFromRange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+          const getCopyFrom = (rand, buffer, copy) => {
+              const { length } = buffer;
+              const max = 20;
+              const start = getRandFromRange(275, length - (max + 1));
+              const mid = start + max / 2;
+              const end = start + max;
+              buffer.getChannelData(0)[start] = rand;
+              buffer.getChannelData(0)[mid] = rand;
+              buffer.getChannelData(0)[end] = rand;
+              buffer.copyFromChannel(copy, 0);
+              const attack = [
+                  buffer.getChannelData(0)[start] === 0 ? Math.random() : 0,
+                  buffer.getChannelData(0)[mid] === 0 ? Math.random() : 0,
+                  buffer.getChannelData(0)[end] === 0 ? Math.random() : 0,
+              ];
+              return [...new Set([...buffer.getChannelData(0), ...copy, ...attack])].filter((x) => x !== 0);
+          };
+          const getCopyTo = (rand, buffer, copy) => {
+              buffer.copyToChannel(copy.map(() => rand), 0);
+              const frequency = buffer.getChannelData(0)[0];
+              const dataAttacked = [...buffer.getChannelData(0)]
+                  .map((x) => x !== frequency || !x ? Math.random() : x);
+              return dataAttacked.filter((x) => x !== frequency);
+          };
+          const getNoiseFactor = () => {
+              const length = 2000;
+              try {
+                  const result = [...new Set([
+                          ...getCopyFrom(AUDIO_TRAP, new AudioBuffer({ length, sampleRate: 44100 }), new Float32Array(length)),
+                          ...getCopyTo(AUDIO_TRAP, new AudioBuffer({ length, sampleRate: 44100 }), new Float32Array(length)),
+                      ])];
+                  return +(result.length !== 1 &&
+                      result.reduce((acc, n) => acc += +n, 0));
+              }
+              catch (error) {
+                  console.error(error);
+                  return 0;
+              }
+          };
+          const noiseFactor = getNoiseFactor();
+          const noise = (noiseFactor || [...new Set(bins.slice(0, 100))]
+              .reduce((acc, n) => acc += n, 0));
+          // Locked Patterns
+          const known = {
+              /* BLINK */
+              // 124.04347527516074/124.04347518575378
+              '-20.538286209106445,164537.64796829224,502.5999283068122': [124.04347527516074],
+              '-20.538288116455078,164537.64796829224,502.5999283068122': [124.04347527516074],
+              '-20.538288116455078,164537.64795303345,502.5999283068122': [
+                  124.04347527516074,
+                  124.04347518575378,
+                  // sus:
+                  124.04347519320436,
+                  124.04347523045726,
+              ],
+              '-20.538286209106445,164537.64805984497,502.5999283068122': [124.04347527516074],
+              '-20.538288116455078,164537.64805984497,502.5999283068122': [
+                  124.04347527516074,
+                  124.04347518575378,
+                  // sus
+                  124.04347520065494,
+                  124.04347523790784,
+                  124.043475252809,
+                  124.04347526025958,
+                  124.04347522300668,
+                  124.04347523045726,
+                  124.04347524535842,
+              ],
+              // 124.04344884395687
+              '-20.538288116455078,164881.9727935791,502.59990317908887': [124.04344884395687],
+              '-20.538288116455078,164881.9729309082,502.59990317908887': [124.04344884395687],
+              // 124.0434488439787
+              '-20.538286209106445,164882.2082748413,502.59990317911434': [124.0434488439787],
+              '-20.538288116455078,164882.20836639404,502.59990317911434': [124.0434488439787],
+              // 124.04344968475198
+              '-20.538286209106445,164863.45319366455,502.5999033495791': [124.04344968475198],
+              '-20.538288116455078,164863.45319366455,502.5999033495791': [
+                  124.04344968475198,
+                  124.04375314689969,
+                  // sus
+                  124.04341541208123,
+              ],
+              // 124.04347503720783 (rare)
+              '-20.538288116455078,164531.82670593262,502.59992767886797': [
+                  124.04347503720783,
+                  // sus
+                  124.04347494780086,
+                  124.04347495525144,
+                  124.04347499250434,
+                  124.0434750074055,
+              ],
+              // 124.04347657808103
+              '-20.538286209106445,164540.1567993164,502.59992209258417': [124.04347657808103],
+              '-20.538288116455078,164540.1567993164,502.59992209258417': [
+                  124.04347657808103,
+                  124.0434765110258,
+                  124.04347656317987,
+                  // sus
+                  124.04347657063045,
+                  124.04378004022874,
+              ],
+              '-20.538288116455078,164540.1580810547,502.59992209258417': [124.04347657808103],
+              // 124.080722568091/124.04347730590962 (rare)
+              '-20.535268783569336,164940.360786438,502.69695458233764': [124.080722568091],
+              '-20.538288116455078,164538.55073928833,502.5999307175407': [124.04347730590962],
+              // Android/Linux
+              '-20.535268783569336,164948.14596557617,502.6969545823631': [124.08072256811283],
+              '-20.535268783569336,164926.65912628174,502.6969610930064': [124.08072766105033],
+              '-20.535268783569336,164932.96168518066,502.69696179985476': [124.08072787802666],
+              '-20.535268783569336,164931.54252624512,502.6969617998802': [124.08072787804849],
+              '-20.535268783569336,164591.9659729004,502.6969925059784': [124.08074500028306],
+              '-20.535268783569336,164590.4111480713,502.6969947774742': [124.0807470110085],
+              '-20.535268783569336,164590.41115570068,502.6969947774742': [124.0807470110085],
+              '-20.535268783569336,164593.64263916016,502.69700490119067': [124.08075528279005],
+              '-20.535268783569336,164595.0285797119,502.69700578315314': [124.08075643483608],
+              // sus
+              '-20.538288116455078,164860.96576690674,502.6075748118915': [124.0434496279413],
+              '-20.538288116455078,164860.9938583374,502.6073723861407': [124.04344962817413],
+              '-20.538288116455078,164862.14078521729,502.59991004130643': [124.04345734833623],
+              '-20.538288116455078,164534.50047683716,502.61542110471055': [124.04347520368174],
+              '-20.538288116455078,164535.1324043274,502.6079200572931': [124.04347521997988],
+              '-20.538288116455078,164535.51135635376,502.60633126448374': [124.04347522952594],
+              /* GECKO */
+              '-31.509262084960938,167722.6894454956,148.42717787250876': [35.7383295930922],
+              '-31.509262084960938,167728.72756958008,148.427184343338': [35.73833402246237],
+              '-31.50218963623047,167721.27517700195,148.47537828609347': [35.74996031448245],
+              '-31.502185821533203,167727.52931976318,148.47542023658752': [35.7499681673944],
+              /* WEBKIT */
+              '-20.538288116455078,164873.80361557007,502.59989904452596': [124.0434485301812],
+              '-20.538288116455078,164863.47760391235,502.5999033453372': [124.0434496849557],
+              '-20.538288116455078,164876.62466049194,502.5998911961724': [124.043453265891],
+              '-20.538288116455078,164862.14879989624,502.59991004130643': [124.04345734833623],
+              '-20.538288116455078,164896.54167175293,502.5999054916465': [124.04345808873768],
+              '-29.837873458862305,163206.43050384521,0': [35.10892717540264],
+              '-29.837873458862305,163224.69785308838,0': [35.10892752557993],
+              '-29.83786964416504,163209.17245483398,0': [35.10893232002854],
+              '-29.83786964416504,163202.77336883545,0': [35.10893253237009],
+          };
+          if (noise) {
+              lied = true;
+              documentLie('AudioBuffer', 'sample noise detected');
+          }
+          const pattern = '' + [
+              compressorGainReduction,
+              floatFrequencyDataSum,
+              floatTimeDomainDataSum,
+          ];
+          const knownPattern = known[pattern];
+          if (knownPattern && !knownPattern.includes(sampleSum)) {
+              LowerEntropy.AUDIO = true;
+              sendToTrash('AudioBuffer', 'suspicious frequency data');
+          }
+          logTestResult({ time: timer.stop(), test: 'audio', passed: true });
+          return {
+              totalUniqueSamples,
+              compressorGainReduction,
+              floatFrequencyDataSum,
+              floatTimeDomainDataSum,
+              sampleSum,
+              binsSample,
+              copySample: copyFromChannelSupported ? copySample : [undefined],
+              values,
+              noise,
+              lied,
+          };
+      }
+      catch (error) {
+          logTestResult({ test: 'audio', passed: false });
+          captureError(error, 'OfflineAudioContext failed or blocked by client');
+          return;
+      }
+  }
+  /*
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export function audioHTML(fp: any) {
+      if (!fp.offlineAudioContext) {
+          return `<div class="col-four undefined">
+              <strong>Audio</strong>
+              <div>sum: ${HTMLNote.BLOCKED}</div>
+              <div>gain: ${HTMLNote.BLOCKED}</div>
+              <div>freq: ${HTMLNote.BLOCKED}</div>
+              <div>time: ${HTMLNote.BLOCKED}</div>
+              <div>trap: ${HTMLNote.BLOCKED}</div>
+              <div>unique: ${HTMLNote.BLOCKED}</div>
+              <div>data: ${HTMLNote.BLOCKED}</div>
+              <div>copy: ${HTMLNote.BLOCKED}</div>
+              <div>values: ${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          offlineAudioContext: {
+              $hash,
+              totalUniqueSamples,
+              compressorGainReduction,
+              floatFrequencyDataSum,
+              floatTimeDomainDataSum,
+              sampleSum,
+              binsSample,
+              copySample,
+              lied,
+              noise,
+              values,
+          },
+      } = fp
+      const knownSums = KnownAudio[compressorGainReduction] || []
+      const validAudio = sampleSum && compressorGainReduction && knownSums.length
+      const matchesKnownAudio = knownSums.includes(sampleSum)
+      return `
+      <div class="relative col-four${lied ? ' rejected' : ''}">
+          <span class="aside-note">${performanceLogger.getLog().audio}</span>
+          <strong>Audio</strong><span class="${lied ? 'lies ' : LowerEntropy.AUDIO ? 'bold-fail ' : ''}hash">${hashSlice($hash)}</span>
+          <div class="help" title="AudioBuffer.getChannelData()">sum: ${
+              !sampleSum ? HTMLNote.BLOCKED : (!validAudio || matchesKnownAudio) ? sampleSum : getDiffs({
+                  stringA: knownSums[0],
+                  stringB: sampleSum,
+                  charDiff: true,
+                  decorate: (diff) => `<span class="bold-fail">${diff}</span>`,
+              })
+          }</div>
+          <div class="help" title="DynamicsCompressorNode.reduction">gain: ${
+              compressorGainReduction || HTMLNote.BLOCKED
+          }</div>
+          <div class="help" title="AnalyserNode.getFloatFrequencyData()">freq: ${
+              floatFrequencyDataSum || HTMLNote.BLOCKED
+          }</div>
+          <div class="help" title="AnalyserNode.getFloatTimeDomainData()">time: ${
+              floatTimeDomainDataSum || HTMLNote.UNSUPPORTED
+          }</div>
+          <div class="help" title="AudioBuffer.getChannelData()\nAudioBuffer.copyFromChannel()\nAudioBuffer.copyToChannel">trap: ${
+              !noise ? AUDIO_TRAP : getDiffs({
+                  stringA: AUDIO_TRAP,
+                  stringB: noise,
+                  charDiff: true,
+                  decorate: (diff) => `<span class="bold-fail">${diff}</span>`,
+              })
+          }</div>
+          <div>unique: ${totalUniqueSamples}</div>
+          <div class="help" title="AudioBuffer.getChannelData()">data:${
+              ''+binsSample[0] == 'undefined' ? ` ${HTMLNote.BLOCKED}` :
+              `<span class="sub-hash">${hashMini(binsSample)}</span>`
+          }</div>
+          <div class="help" title="AudioBuffer.copyFromChannel()">copy:${
+              ''+copySample[0] == 'undefined' ? ` ${HTMLNote.BLOCKED}` :
+              `<span class="sub-hash">${hashMini(copySample)}</span>`
+          }</div>
+          <div>values: ${
+              modal(
+                  'creep-offline-audio-context',
+                  Object.keys(values).map((key) => `<div>${key}: ${values[key]}</div>`).join(''),
+                  hashMini(values),
+              )
+          }</div>
+      </div>
+      `
+  }
+  */
+
+  // inspired by https://arkenfox.github.io/TZP/tests/canvasnoise.html
+  let pixelImageRandom = '';
+  const getPixelMods = () => {
+      const pattern1 = [];
+      const pattern2 = [];
+      const len = 8; // canvas dimensions
+      const alpha = 255;
+      const visualMultiplier = 5;
+      try {
+          // create 2 canvas contexts
+          const options = {
+              willReadFrequently: true,
+              desynchronized: true,
+          };
+          const canvasDisplay1 = document.createElement('canvas');
+          const canvasDisplay2 = document.createElement('canvas');
+          const canvas1 = document.createElement('canvas');
+          const canvas2 = document.createElement('canvas');
+          const contextDisplay1 = canvasDisplay1.getContext('2d', options);
+          const contextDisplay2 = canvasDisplay2.getContext('2d', options);
+          const context1 = canvas1.getContext('2d', options);
+          const context2 = canvas2.getContext('2d', options);
+          if (!contextDisplay1 || !contextDisplay2 || !context1 || !context2) {
+              throw new Error('canvas context blocked');
+          }
+          // set the dimensions
+          canvasDisplay1.width = len * visualMultiplier;
+          canvasDisplay1.height = len * visualMultiplier;
+          canvasDisplay2.width = len * visualMultiplier;
+          canvasDisplay2.height = len * visualMultiplier;
+          canvas1.width = len;
+          canvas1.height = len;
+          canvas2.width = len;
+          canvas2.height = len;
+          [...Array(len)].forEach((e, x) => [...Array(len)].forEach((e, y) => {
+              const red = ~~(Math.random() * 256);
+              const green = ~~(Math.random() * 256);
+              const blue = ~~(Math.random() * 256);
+              const colors = `${red}, ${green}, ${blue}, ${alpha}`;
+              context1.fillStyle = `rgba(${colors})`;
+              context1.fillRect(x, y, 1, 1);
+              // capture data in visuals
+              contextDisplay1.fillStyle = `rgba(${colors})`;
+              contextDisplay1.fillRect(x * visualMultiplier, y * visualMultiplier, 1 * visualMultiplier, 1 * visualMultiplier);
+              return pattern1.push(colors); // collect the pixel pattern
+          }));
+          [...Array(len)].forEach((e, x) => [...Array(len)].forEach((e, y) => {
+              // get context1 pixel data and mirror to context2
+              const { data: [red, green, blue, alpha], } = context1.getImageData(x, y, 1, 1) || {};
+              const colors = `${red}, ${green}, ${blue}, ${alpha}`;
+              context2.fillStyle = `rgba(${colors})`;
+              context2.fillRect(x, y, 1, 1);
+              // capture noise in visuals
+              const { data: [red2, green2, blue2, alpha2], } = context2.getImageData(x, y, 1, 1) || {};
+              const colorsDisplay = `
+				${red != red2 ? red2 : 255},
+				${green != green2 ? green2 : 255},
+				${blue != blue2 ? blue2 : 255},
+				${alpha != alpha2 ? alpha2 : 1}
+			`;
+              contextDisplay2.fillStyle = `rgba(${colorsDisplay})`;
+              contextDisplay2.fillRect(x * visualMultiplier, y * visualMultiplier, 1 * visualMultiplier, 1 * visualMultiplier);
+              return pattern2.push(colors); // collect the pixel pattern
+          }));
+          // compare the pattern collections and collect diffs
+          const patternDiffs = [];
+          const rgbaChannels = new Set();
+          [...Array(pattern1.length)].forEach((e, i) => {
+              const pixelColor1 = pattern1[i];
+              const pixelColor2 = pattern2[i];
+              if (pixelColor1 != pixelColor2) {
+                  const rgbaValues1 = pixelColor1.split(',');
+                  const rgbaValues2 = pixelColor2.split(',');
+                  const colors = [
+                      rgbaValues1[0] != rgbaValues2[0] ? 'r' : '',
+                      rgbaValues1[1] != rgbaValues2[1] ? 'g' : '',
+                      rgbaValues1[2] != rgbaValues2[2] ? 'b' : '',
+                      rgbaValues1[3] != rgbaValues2[3] ? 'a' : '',
+                  ].join('');
+                  rgbaChannels.add(colors);
+                  patternDiffs.push([i, colors]);
+              }
+          });
+          pixelImageRandom = canvasDisplay1.toDataURL(); // template use only
+          const pixelImage = canvasDisplay2.toDataURL();
+          const rgba = rgbaChannels.size ? [...rgbaChannels].sort().join(', ') : undefined;
+          const pixels = patternDiffs.length || undefined;
+          return { rgba, pixels, pixelImage };
+      }
+      catch (error) {
+          return console.error(error);
+      }
+  };
+  // based on and inspired by https://github.com/antoinevastel/picasso-like-canvas-fingerprinting
+  const paintCanvas = ({ canvas, context, strokeText = false, cssFontFamily = '', area = { width: 50, height: 50 }, rounds = 10, maxShadowBlur = 50, seed = 500, offset = 2001000001, multiplier = 15000, }) => {
+      if (!context) {
+          return;
+      }
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width = area.width;
+      canvas.height = area.height;
+      if (canvas.style) {
+          canvas.style.display = 'none';
+      }
+      const createPicassoSeed = ({ seed, offset, multiplier }) => {
+          let current = Number(seed) % Number(offset);
+          const getNextSeed = () => {
+              current = (Number(multiplier) * current) % Number(offset);
+              return current;
+          };
+          return {
+              getNextSeed,
+          };
+      };
+      const picassoSeed = createPicassoSeed({ seed, offset, multiplier });
+      const { getNextSeed } = picassoSeed;
+      const patchSeed = (current, offset, maxBound, computeFloat) => {
+          const result = (((current - 1) / offset) * (maxBound || 1)) || 0;
+          return computeFloat ? result : Math.floor(result);
+      };
+      const addRandomCanvasGradient = (context, offset, area, colors, getNextSeed) => {
+          const { width, height } = area;
+          const canvasGradient = context.createRadialGradient(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width));
+          canvasGradient.addColorStop(0, colors[patchSeed(getNextSeed(), offset, colors.length)]);
+          canvasGradient.addColorStop(1, colors[patchSeed(getNextSeed(), offset, colors.length)]);
+          context.fillStyle = canvasGradient;
+      };
+      const colors = [
+          '#FF6633', '#FFB399', '#FF33FF', '#FFFF99', '#00B3E6',
+          '#E6B333', '#3366E6', '#999966', '#99FF99', '#B34D4D',
+          '#80B300', '#809900', '#E6B3B3', '#6680B3', '#66991A',
+          '#FF99E6', '#CCFF1A', '#FF1A66', '#E6331A', '#33FFCC',
+          '#66994D', '#B366CC', '#4D8000', '#B33300', '#CC80CC',
+          '#66664D', '#991AFF', '#E666FF', '#4DB3FF', '#1AB399',
+          '#E666B3', '#33991A', '#CC9999', '#B3B31A', '#00E680',
+          '#4D8066', '#809980', '#E6FF80', '#1AFF33', '#999933',
+          '#FF3380', '#CCCC00', '#66E64D', '#4D80CC', '#9900B3',
+          '#E64D66', '#4DB380', '#FF4D4D', '#99E6E6', '#6666FF',
+      ];
+      const drawOutlineOfText = (context, offset, area, getNextSeed) => {
+          const { width, height } = area;
+          const fontSize = 2.99;
+          context.font = `${height / fontSize}px ${cssFontFamily.replace(/!important/gm, '')}`;
+          context.strokeText('👾A', patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width));
+      };
+      const createCircularArc = (context, offset, area, getNextSeed) => {
+          const { width, height } = area;
+          context.beginPath();
+          context.arc(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, Math.min(width, height)), patchSeed(getNextSeed(), offset, 2 * Math.PI, true), patchSeed(getNextSeed(), offset, 2 * Math.PI, true));
+          context.stroke();
+      };
+      const createBezierCurve = (context, offset, area, getNextSeed) => {
+          const { width, height } = area;
+          context.beginPath();
+          context.moveTo(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height));
+          context.bezierCurveTo(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height));
+          context.stroke();
+      };
+      const createQuadraticCurve = (context, offset, area, getNextSeed) => {
+          const { width, height } = area;
+          context.beginPath();
+          context.moveTo(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height));
+          context.quadraticCurveTo(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height));
+          context.stroke();
+      };
+      const createEllipticalArc = (context, offset, area, getNextSeed) => {
+          if (!('ellipse' in context)) {
+              return;
+          }
+          const { width, height } = area;
+          context.beginPath();
+          context.ellipse(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, Math.floor(width / 2)), patchSeed(getNextSeed(), offset, Math.floor(height / 2)), patchSeed(getNextSeed(), offset, 2 * Math.PI, true), patchSeed(getNextSeed(), offset, 2 * Math.PI, true), patchSeed(getNextSeed(), offset, 2 * Math.PI, true));
+          context.stroke();
+      };
+      const methods = [
+          createCircularArc,
+          createBezierCurve,
+          createQuadraticCurve,
+      ];
+      if (!IS_WEBKIT)
+          methods.push(createEllipticalArc); // unstable in webkit
+      if (strokeText)
+          methods.push(drawOutlineOfText);
+      [...Array(rounds)].forEach((x) => {
+          addRandomCanvasGradient(context, offset, area, colors, getNextSeed);
+          context.shadowBlur = patchSeed(getNextSeed(), offset, maxShadowBlur, true);
+          context.shadowColor = colors[patchSeed(getNextSeed(), offset, colors.length)];
+          const nextMethod = methods[patchSeed(getNextSeed(), offset, methods.length)];
+          nextMethod(context, offset, area, getNextSeed);
+          context.fill();
+      });
+      return;
+  };
+  async function getCanvas2d() {
+      try {
+          const timer = createTimer();
+          await queueEvent(timer);
+          const dataLie = lieProps['HTMLCanvasElement.toDataURL'];
+          const contextLie = lieProps['HTMLCanvasElement.getContext'];
+          const imageDataLie = (lieProps['CanvasRenderingContext2D.fillText'] ||
+              lieProps['CanvasRenderingContext2D.font'] ||
+              lieProps['CanvasRenderingContext2D.getImageData'] ||
+              lieProps['CanvasRenderingContext2D.strokeText']);
+          const codePointLie = lieProps['String.fromCodePoint'];
+          let textMetricsLie = (lieProps['CanvasRenderingContext2D.measureText'] ||
+              lieProps['TextMetrics.actualBoundingBoxAscent'] ||
+              lieProps['TextMetrics.actualBoundingBoxDescent'] ||
+              lieProps['TextMetrics.actualBoundingBoxLeft'] ||
+              lieProps['TextMetrics.actualBoundingBoxRight'] ||
+              lieProps['TextMetrics.fontBoundingBoxAscent'] ||
+              lieProps['TextMetrics.fontBoundingBoxDescent'] ||
+              lieProps['TextMetrics.width']);
+          let lied = (dataLie ||
+              contextLie ||
+              imageDataLie ||
+              textMetricsLie ||
+              codePointLie) || false;
+          // create canvas context
+          let win = window;
+          if (!LIKE_BRAVE && PHANTOM_DARKNESS) {
+              win = PHANTOM_DARKNESS;
+          }
+          const doc = win.document;
+          const canvas = doc.createElement('canvas');
+          const context = canvas.getContext('2d');
+          const canvasCPU = doc.createElement('canvas');
+          const contextCPU = canvasCPU.getContext('2d', {
+              desynchronized: true,
+              willReadFrequently: true,
+          });
+          if (!context) {
+              throw new Error('canvas context blocked');
+          }
+          await queueEvent(timer);
+          const imageSizeMax = IS_WEBKIT ? 50 : 75; // webkit is unstable
+          paintCanvas({
+              canvas,
+              context,
+              strokeText: true,
+              cssFontFamily: CSS_FONT_FAMILY,
+              area: { width: imageSizeMax, height: imageSizeMax },
+              rounds: 10,
+          });
+          const dataURI = canvas.toDataURL();
+          await queueEvent(timer);
+          const mods = getPixelMods();
+          // TextMetrics: get emoji set and system
+          await queueEvent(timer);
+          context.font = `10px ${CSS_FONT_FAMILY.replace(/!important/gm, '')}`;
+          const pattern = new Set();
+          const emojiSet = EMOJIS.reduce((emojiSet, emoji) => {
+              const { actualBoundingBoxAscent, actualBoundingBoxDescent, actualBoundingBoxLeft, actualBoundingBoxRight, fontBoundingBoxAscent, fontBoundingBoxDescent, width, } = context.measureText(emoji) || {};
+              const dimensions = [
+                  actualBoundingBoxAscent,
+                  actualBoundingBoxDescent,
+                  actualBoundingBoxLeft,
+                  actualBoundingBoxRight,
+                  fontBoundingBoxAscent,
+                  fontBoundingBoxDescent,
+                  width,
+              ].join(',');
+              if (!pattern.has(dimensions)) {
+                  pattern.add(dimensions);
+                  emojiSet.add(emoji);
+              }
+              return emojiSet;
+          }, new Set());
+          // textMetrics System Sum
+          const textMetricsSystemSum = 0.00001 * [...pattern].map((x) => {
+              return x.split(',').reduce((acc, x) => acc += (+x || 0), 0);
+          }).reduce((acc, x) => acc += x, 0);
+          // Paint
+          const maxSize = 75;
+          await queueEvent(timer);
+          paintCanvas({
+              canvas,
+              context,
+              area: { width: maxSize, height: maxSize },
+          }); // clears image
+          const paintURI = canvas.toDataURL();
+          // Paint with CPU
+          await queueEvent(timer);
+          paintCanvas({
+              canvas: canvasCPU,
+              context: contextCPU,
+              area: { width: maxSize, height: maxSize },
+          }); // clears image
+          const paintCpuURI = canvasCPU.toDataURL();
+          // Text
+          context.restore();
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          canvas.width = 50;
+          canvas.height = 50;
+          context.font = `50px ${CSS_FONT_FAMILY.replace(/!important/gm, '')}`;
+          context.fillText('A', 7, 37);
+          const textURI = canvas.toDataURL();
+          // Emoji
+          context.restore();
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          canvas.width = 50;
+          canvas.height = 50;
+          context.font = `35px ${CSS_FONT_FAMILY.replace(/!important/gm, '')}`;
+          context.fillText('👾', 0, 37);
+          const emojiURI = canvas.toDataURL();
+          // lies
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          if ((mods && mods.pixels) || !!Math.max(...context.getImageData(0, 0, 8, 8).data)) {
+              lied = true;
+              documentLie(`CanvasRenderingContext2D.getImageData`, `pixel data modified`);
+          }
+          // verify low entropy image data
+          canvas.width = 2;
+          canvas.height = 2;
+          context.fillStyle = '#000';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.fillStyle = '#fff';
+          context.fillRect(2, 2, 1, 1);
+          context.beginPath();
+          context.arc(0, 0, 2, 0, 1, true);
+          context.closePath();
+          context.fill();
+          const imageDataLowEntropy = context.getImageData(0, 0, 2, 2).data.join('');
+          const KnownImageData = {
+              BLINK: [
+                  '255255255255192192192255240240240255484848255',
+                  '255255255255177177177255246246246255535353255',
+                  '255255255255128128128255191191191255646464255',
+                  '255255255255178178178255247247247255565656255',
+                  '255255255255174174174255242242242255474747255',
+                  '255255255255229229229255127127127255686868255',
+                  '255255255255192192192255244244244255535353255',
+              ],
+              GECKO: [
+                  '255255255255192192192255240240240255484848255',
+                  '255255255255191191191255239239239255646464255',
+                  '255255255255191191191255223223223255606060255',
+                  '255255255255171171171255223223223255606060255', // ?
+              ],
+              WEBKIT: [
+                  '255255255255185185185255233233233255474747255',
+                  '255255255255185185185255229229229255474747255',
+                  '255255255255185185185255218218218255474747255',
+                  '255255255255192192192255240240240255484848255',
+                  '255255255255178178178255247247247255565656255',
+                  '255255255255178178178255247247247255565656255',
+                  '255255255255192192192255240240240255484848255',
+                  '255255255255186186186255218218218255464646255',
+              ],
+          };
+          Analysis.imageDataLowEntropy = imageDataLowEntropy;
+          if (IS_BLINK && !KnownImageData.BLINK.includes(imageDataLowEntropy)) {
+              LowerEntropy.CANVAS = true;
+          }
+          else if (IS_GECKO && !KnownImageData.GECKO.includes(imageDataLowEntropy)) {
+              LowerEntropy.CANVAS = true;
+          }
+          else if (IS_WEBKIT && !KnownImageData.WEBKIT.includes(imageDataLowEntropy)) {
+              LowerEntropy.CANVAS = true;
+          }
+          if (LowerEntropy.CANVAS) {
+              sendToTrash('CanvasRenderingContext2D.getImageData', 'suspicious pixel data');
+          }
+          const getTextMetricsFloatLie = (context) => {
+              const isFloat = (n) => n % 1 !== 0;
+              const { actualBoundingBoxAscent: abba, actualBoundingBoxDescent: abbd, actualBoundingBoxLeft: abbl, actualBoundingBoxRight: abbr, fontBoundingBoxAscent: fbba, fontBoundingBoxDescent: fbbd,
+              // width: w,
+               } = context.measureText('') || {};
+              const lied = [
+                  abba,
+                  abbd,
+                  abbl,
+                  abbr,
+                  fbba,
+                  fbbd,
+              ].find((x) => isFloat((x || 0)));
+              return lied;
+          };
+          await queueEvent(timer);
+          if (getTextMetricsFloatLie(context)) {
+              textMetricsLie = true;
+              lied = true;
+              documentLie('CanvasRenderingContext2D.measureText', 'metric noise detected');
+          }
+          logTestResult({ time: timer.stop(), test: 'canvas 2d', passed: true });
+          return {
+              dataURI,
+              paintURI,
+              paintCpuURI,
+              textURI,
+              emojiURI,
+              mods,
+              textMetricsSystemSum,
+              liedTextMetrics: textMetricsLie,
+              emojiSet: [...emojiSet],
+              lied,
+          };
+      }
+      catch (error) {
+          logTestResult({ test: 'canvas 2d', passed: false });
+          captureError(error);
+          return;
+      }
+  }
+  /*
+  export function canvasHTML(fp) {
+      if (!fp.canvas2d) {
+          return `
+          <div class="col-six undefined">
+              <strong>Canvas 2d</strong> <span>${HTMLNote.BLOCKED}</span>
+              <div>data: ${HTMLNote.BLOCKED}</div>
+              <div>rendering:</div>
+              <div class="icon-pixel-container pixels">${HTMLNote.BLOCKED}</div>
+              <div class="icon-pixel-container pixels">${HTMLNote.BLOCKED}</div>
+              <div>textMetrics:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+
+      const {
+          canvas2d: {
+              lied,
+              dataURI,
+              paintURI,
+              paintCpuURI,
+              textURI,
+              emojiURI,
+              mods,
+              emojiSet,
+              textMetricsSystemSum,
+              $hash,
+          },
+      } = fp
+      const { pixels, rgba, pixelImage } = mods || {}
+      const modPercent = pixels ? Math.round((pixels / 400) * 100) : 0
+
+      const hash = {
+          dataURI: hashMini(dataURI),
+          textURI: hashMini(textURI),
+          emojiURI: hashMini(emojiURI),
+          paintURI: hashMini(paintURI),
+          paintCpuURI: hashMini(paintCpuURI),
+      }
+      const dataTemplate = `
+          ${textURI ? `<div class="icon-pixel text-image"></div>` : ''}
+          <br>text: ${!textURI ? HTMLNote.BLOCKED : hash.textURI}
+
+          <br><br>
+          ${emojiURI ? `<div class="icon-pixel emoji-image"></div>` : ''}
+          <br>emoji: ${!emojiURI ? HTMLNote.BLOCKED : hash.emojiURI}
+
+          <br><br>
+          ${paintURI ? `<div class="icon-pixel paint-image"></div>` : ''}
+          <br>paint (GPU): ${!paintURI ? HTMLNote.BLOCKED : hash.paintURI}
+
+          <br><br>
+          ${paintCpuURI ? `<div class="icon-pixel paint-cpu-image"></div>` : ''}
+          <br>paint (CPU): ${!paintCpuURI ? HTMLNote.BLOCKED : hash.paintCpuURI}
+
+          <br><br>
+          ${dataURI ? `<div class="icon-pixel combined-image"></div>` : ''}
+          <br>combined: ${!dataURI ? HTMLNote.BLOCKED : hash.dataURI}
+      `
+
+      // rgba: "b, g, gb, r, rb, rg, rgb"
+      const rgbaHTML = !rgba ? rgba : rgba.split(', ').map((s) => s.split('').map((c) => {
+          const css = {
+              r: 'red',
+              g: 'green',
+              b: 'blue',
+          }
+          return `<span class="rgba rgba-${css[c]}"></span>`
+      }).join('')).join(' ')
+
+      const emojiHelpTitle = `CanvasRenderingContext2D.measureText()\nhash: ${hashMini(emojiSet)}\n${emojiSet.map((x, i) => i && (i % 6 == 0) ? `${x}\n` : x).join('')}`
+
+      return `
+      <div class="relative col-six${lied ? ' rejected' : ''}">
+          <style>
+              .pixels {
+                  padding: 19px;
+                  position: relative;
+                  overflow: hidden;
+              }
+              .canvas-data {
+                  max-width: 200px;
+                  height: 50px;
+                  transform: scale(1);
+                  background-image: url(${dataURI})
+              }
+              .pixel-image,
+              .pixel-image-random,
+              .combined-image,
+              .paint-image,
+              .paint-cpu-image,
+              .text-image,
+              .emoji-image {
+                  max-width: 35px;
+              border-radius: 50%;
+                  transform: scale(1.5);
+              }
+              .pixel-image {
+                  background-image: url(${pixelImage})
+              }
+              .pixel-image-random {
+                  background-image: url(${pixelImageRandom})
+              }
+              .paint-image {
+                  background-image: url(${paintURI})
+              }
+              .paint-cpu-image {
+                  background-image: url(${paintCpuURI})
+              }
+              .text-image {
+                  background-image: url(${textURI})
+              }
+              .emoji-image {
+                  background-image: url(${emojiURI})
+              }
+              .combined-image {
+                  background-image: url(${dataURI})
+              }
+              .rgba {
+                  width: 8px;
+                  height: 8px;
+                  display: inline-block;
+                  border-radius: 50%;
+              }
+              .rgba-red {
+                  background: #ff000c4a;
+              }
+              .rgba-green {
+                  background: #00ff584a;
+              }
+              .rgba-blue {
+                  background: #009fff5e;
+              }
+              @media (prefers-color-scheme: dark) {
+                  .rgba-red {
+                      background: #e19fa2;
+                  }
+                  .rgba-green {
+                      background: #98dfb1;
+                  }
+                  .rgba-blue {
+                      background: #67b7ff;
+                  }
+              }
+          </style>
+          <span class="aside-note">${performanceLogger.getLog()['canvas 2d']}</span>
+          <strong>Canvas 2d</strong><span class="${lied ? 'lies ' : LowerEntropy.CANVAS ? 'bold-fail ' : ''}hash">${hashSlice($hash)}</span>
+          <div class="help" title="HTMLCanvasElement.toDataURL()\nCanvasRenderingContext2D.getImageData()">data: ${
+              modal(
+                  'creep-canvas-data',
+                  dataTemplate,
+                  hashMini({
+                      dataURI,
+                      pixelImage,
+                      paintURI,
+                      paintCpuURI,
+                      textURI,
+                      emojiURI,
+                  }),
+              )
+          }</div>
+          <div class="help" title="CanvasRenderingContext2D.getImageData()">rendering: ${rgba ? `${modPercent}% rgba noise ${rgbaHTML}` : ''}</div>
+          <div class="icon-pixel-container pixels">
+              ${textURI ? `<div class="icon-pixel text-image"></div>` : ''}
+              ${emojiURI ? `<div class="icon-pixel emoji-image"></div>` : ''}
+              ${paintCpuURI ? `<div class="icon-pixel paint-cpu-image"></div>` : ''}
+              ${dataURI ? `<div class="icon-pixel combined-image"></div>` : ''}
+          </div>
+          <div class="icon-pixel-container pixels">
+              <div class="icon-pixel pixel-image-random"></div>
+              ${rgba ? `<div class="icon-pixel pixel-image"></div>` : ''}
+          </div>
+          <div>textMetrics:</div>
+          <div class="block-text help relative" title="${emojiHelpTitle}">
+              <span>${textMetricsSystemSum || HTMLNote.UNSUPPORTED}</span>
+              <span class="grey jumbo" style="font-family: ${CSS_FONT_FAMILY}">
+                  ${formatEmojiSet(emojiSet)}
+              </span>
+          </div>
+      </div>
+      `
+  }
+  */
+
+  function getCSS() {
+      const computeStyle = (type, { require: [captureError] }) => {
+          try {
+              // get CSSStyleDeclaration
+              const cssStyleDeclaration = (type == 'getComputedStyle' ? getComputedStyle(document.body) :
+                  type == 'HTMLElement.style' ? document.body.style :
+                      // @ts-ignore
+                      type == 'CSSRuleList.style' ? document.styleSheets[0].cssRules[0].style :
+                          undefined);
+              if (!cssStyleDeclaration) {
+                  throw new TypeError('invalid argument string');
+              }
+              // get properties
+              const proto = Object.getPrototypeOf(cssStyleDeclaration);
+              const prototypeProperties = Object.getOwnPropertyNames(proto);
+              const ownEnumerablePropertyNames = [];
+              const cssVar = /^--.*$/;
+              Object.keys(cssStyleDeclaration).forEach((key) => {
+                  const numericKey = !isNaN(+key);
+                  const value = cssStyleDeclaration[key];
+                  const customPropKey = cssVar.test(key);
+                  const customPropValue = cssVar.test(value);
+                  if (numericKey && !customPropValue) {
+                      return ownEnumerablePropertyNames.push(value);
+                  }
+                  else if (!numericKey && !customPropKey) {
+                      return ownEnumerablePropertyNames.push(key);
+                  }
+                  return;
+              });
+              // get properties in prototype chain (required only in chrome)
+              const propertiesInPrototypeChain = {};
+              const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+              const uncapitalize = (str) => str.charAt(0).toLowerCase() + str.slice(1);
+              const removeFirstChar = (str) => str.slice(1);
+              const caps = /[A-Z]/g;
+              ownEnumerablePropertyNames.forEach((key) => {
+                  if (propertiesInPrototypeChain[key]) {
+                      return;
+                  }
+                  // determine attribute type
+                  const isNamedAttribute = key.indexOf('-') > -1;
+                  const isAliasAttribute = caps.test(key);
+                  // reduce key for computation
+                  const firstChar = key.charAt(0);
+                  const isPrefixedName = isNamedAttribute && firstChar == '-';
+                  const isCapitalizedAlias = isAliasAttribute && firstChar == firstChar.toUpperCase();
+                  key = (isPrefixedName ? removeFirstChar(key) :
+                      isCapitalizedAlias ? uncapitalize(key) :
+                          key);
+                  // find counterpart in CSSStyleDeclaration object or its prototype chain
+                  if (isNamedAttribute) {
+                      const aliasAttribute = key.split('-').map((word, index) => index == 0 ? word : capitalize(word)).join('');
+                      if (aliasAttribute in cssStyleDeclaration) {
+                          propertiesInPrototypeChain[aliasAttribute] = true;
+                      }
+                      else if (capitalize(aliasAttribute) in cssStyleDeclaration) {
+                          propertiesInPrototypeChain[capitalize(aliasAttribute)] = true;
+                      }
+                  }
+                  else if (isAliasAttribute) {
+                      const namedAttribute = key.replace(caps, (char) => '-' + char.toLowerCase());
+                      if (namedAttribute in cssStyleDeclaration) {
+                          propertiesInPrototypeChain[namedAttribute] = true;
+                      }
+                      else if (`-${namedAttribute}` in cssStyleDeclaration) {
+                          propertiesInPrototypeChain[`-${namedAttribute}`] = true;
+                      }
+                  }
+                  return;
+              });
+              // compile keys
+              const keys = [
+                  ...new Set([
+                      ...prototypeProperties,
+                      ...ownEnumerablePropertyNames,
+                      ...Object.keys(propertiesInPrototypeChain),
+                  ]),
+              ];
+              // @ts-ignore
+              const interfaceName = ('' + proto).match(/\[object (.+)\]/)[1];
+              return { keys, interfaceName };
+          }
+          catch (error) {
+              captureError(error);
+              return;
+          }
+      };
+      const getSystemStyles = (el) => {
+          try {
+              const colors = [
+                  'ActiveBorder',
+                  'ActiveCaption',
+                  'ActiveText',
+                  'AppWorkspace',
+                  'Background',
+                  'ButtonBorder',
+                  'ButtonFace',
+                  'ButtonHighlight',
+                  'ButtonShadow',
+                  'ButtonText',
+                  'Canvas',
+                  'CanvasText',
+                  'CaptionText',
+                  'Field',
+                  'FieldText',
+                  'GrayText',
+                  'Highlight',
+                  'HighlightText',
+                  'InactiveBorder',
+                  'InactiveCaption',
+                  'InactiveCaptionText',
+                  'InfoBackground',
+                  'InfoText',
+                  'LinkText',
+                  'Mark',
+                  'MarkText',
+                  'Menu',
+                  'MenuText',
+                  'Scrollbar',
+                  'ThreeDDarkShadow',
+                  'ThreeDFace',
+                  'ThreeDHighlight',
+                  'ThreeDLightShadow',
+                  'ThreeDShadow',
+                  'VisitedText',
+                  'Window',
+                  'WindowFrame',
+                  'WindowText',
+              ];
+              const fonts = [
+                  'caption',
+                  'icon',
+                  'menu',
+                  'message-box',
+                  'small-caption',
+                  'status-bar',
+              ];
+              const getStyles = (el) => ({
+                  colors: colors.map((color) => {
+                      el.setAttribute('style', `background-color: ${color} !important`);
+                      return {
+                          [color]: getComputedStyle(el).backgroundColor,
+                      };
+                  }),
+                  fonts: fonts.map((font) => {
+                      el.setAttribute('style', `font: ${font} !important`);
+                      const computedStyle = getComputedStyle(el);
+                      return {
+                          [font]: `${computedStyle.fontSize} ${computedStyle.fontFamily}`,
+                      };
+                  }),
+              });
+              if (!el) {
+                  el = document.createElement('div');
+                  document.body.append(el);
+                  const systemStyles = getStyles(el);
+                  el.parentNode.removeChild(el);
+                  return systemStyles;
+              }
+              return getStyles(el);
+          }
+          catch (error) {
+              captureError(error);
+              return;
+          }
+      };
+      try {
+          const timer = createTimer();
+          timer.start();
+          const computedStyle = computeStyle('getComputedStyle', { require: [captureError] });
+          const system = getSystemStyles(PARENT_PHANTOM);
+          logTestResult({ time: timer.stop(), test: 'computed style', passed: true });
+          return {
+              computedStyle,
+              system,
+          };
+      }
+      catch (error) {
+          logTestResult({ test: 'computed style', passed: false });
+          captureError(error);
+          return;
+      }
+  }
+  /*
+  export function cssHTML(fp) {
+      if (!fp.css) {
+          return `
+          <div class="col-six undefined">
+              <strong>Computed Style</strong>
+              <div>keys (0): ${HTMLNote.BLOCKED}</div>
+              <div>system styles: ${HTMLNote.BLOCKED}</div>
+              <div>
+                  <div>${HTMLNote.BLOCKED}</div>
+              </div>
+              <div class="gradient"></div>
+          </div>`
+      }
+      const {
+          css: data,
+      } = fp
+      const {
+          $hash,
+          computedStyle,
+          system,
+      } = data
+
+      const colorsLen = system.colors.length
+      const gradientColors = system.colors.map((color, index) => {
+          const name = Object.values(color)[0]
+          return (
+              index == 0 ? `${name}, ${name} ${((index+1)/colorsLen*100).toFixed(2)}%` :
+              index == colorsLen-1 ? `${name} ${((index-1)/colorsLen*100).toFixed(2)}%, ${name} 100%` :
+              `${name} ${(index/colorsLen*100).toFixed(2)}%, ${name} ${((index+1)/colorsLen*100).toFixed(2)}%`
+          )
+      })
+      const id = 'creep-css-style-declaration-version'
+      return `
+      <div class="relative col-six">
+          <span class="aside-note">${performanceLogger.getLog()['computed style']}</span>
+          <strong>Computed Style</strong><span class="hash">${hashSlice($hash)}</span>
+          <div>keys (${!computedStyle ? '0' : count(computedStyle.keys)}): ${
+              !computedStyle ? HTMLNote.BLOCKED :
+              modal(
+                  'creep-computed-style',
+                  computedStyle.keys.join(', '),
+                  hashMini(computedStyle),
+              )
+          }</div>
+          <div>system styles: ${
+              system && system.colors ? modal(
+                  `${id}-system-styles`,
+                  [
+                      ...system.colors.map((color) => {
+                          const key = Object.keys(color)[0]
+                          const val = color[key]
+                          return `
+                              <div><span style="display:inline-block;border:1px solid #eee;border-radius:3px;width:12px;height:12px;background:${val}"></span> ${key}: ${val}</div>
+                          `
+                      }),
+                      ...system.fonts.map((font) => {
+                          const key = Object.keys(font)[0]
+                          const val = font[key]
+                          return `
+                              <div>${key}: <span style="padding:0 5px;border-radius:3px;font:${val}">${val}</span></div>
+                          `
+                      }),
+                  ].join(''),
+                  hashMini(system),
+              ) : HTMLNote.BLOCKED
+          }</div>
+          <div class="blurred" id="system-style-samples">
+              <div>system</div>
+          </div>
+          <style>.gradient { background: repeating-linear-gradient(to right, ${gradientColors.join(', ')}); }</style>
+          <div class="gradient"></div>
+      </div>
+      `
+  }
+  */
+
+  function getCSSMedia() {
+      const gcd = (a, b) => b == 0 ? a : gcd(b, a % b);
+      const getAspectRatio = (width, height) => {
+          const r = gcd(width, height);
+          const aspectRatio = `${width / r}/${height / r}`;
+          return aspectRatio;
+      };
+      const query = ({ body, type, rangeStart, rangeLen }) => {
+          const html = [...Array(rangeLen)].map((slot, i) => {
+              i += rangeStart;
+              return `@media(device-${type}:${i}px){body{--device-${type}:${i};}}`;
+          }).join('');
+          body.innerHTML = `<style>${html}</style>`;
+          const style = getComputedStyle(body);
+          return style.getPropertyValue(`--device-${type}`).trim();
+      };
+      const getScreenMedia = ({ body, width, height }) => {
+          let widthMatch = query({ body, type: 'width', rangeStart: width, rangeLen: 1 });
+          let heightMatch = query({ body, type: 'height', rangeStart: height, rangeLen: 1 });
+          if (widthMatch && heightMatch) {
+              return { width, height };
+          }
+          const rangeLen = 1000;
+          [...Array(10)].find((slot, i) => {
+              if (!widthMatch) {
+                  widthMatch = query({ body, type: 'width', rangeStart: i * rangeLen, rangeLen });
+              }
+              if (!heightMatch) {
+                  heightMatch = query({ body, type: 'height', rangeStart: i * rangeLen, rangeLen });
+              }
+              return widthMatch && heightMatch;
+          });
+          return { width: +widthMatch, height: +heightMatch };
+      };
+      try {
+          const timer = createTimer();
+          timer.start();
+          const win = PHANTOM_DARKNESS.window;
+          const { body } = win.document;
+          const { width, availWidth, height, availHeight } = win.screen;
+          const noTaskbar = !(width - availWidth || height - availHeight);
+          if (screen.width !== width || (width > 800 && noTaskbar)) {
+              LowerEntropy.IFRAME_SCREEN = true;
+          }
+          const deviceAspectRatio = getAspectRatio(width, height);
+          const matchMediaCSS = {
+              ['prefers-reduced-motion']: (win.matchMedia('(prefers-reduced-motion: no-preference)').matches ? 'no-preference' :
+                  win.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduce' : undefined),
+              ['prefers-color-scheme']: (win.matchMedia('(prefers-color-scheme: light)').matches ? 'light' :
+                  win.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : undefined),
+              monochrome: (win.matchMedia('(monochrome)').matches ? 'monochrome' :
+                  win.matchMedia('(monochrome: 0)').matches ? 'non-monochrome' : undefined),
+              ['inverted-colors']: (win.matchMedia('(inverted-colors: inverted)').matches ? 'inverted' :
+                  win.matchMedia('(inverted-colors: none)').matches ? 'none' : undefined),
+              ['forced-colors']: (win.matchMedia('(forced-colors: none)').matches ? 'none' :
+                  win.matchMedia('(forced-colors: active)').matches ? 'active' : undefined),
+              ['any-hover']: (win.matchMedia('(any-hover: hover)').matches ? 'hover' :
+                  win.matchMedia('(any-hover: none)').matches ? 'none' : undefined),
+              hover: (win.matchMedia('(hover: hover)').matches ? 'hover' :
+                  win.matchMedia('(hover: none)').matches ? 'none' : undefined),
+              ['any-pointer']: (win.matchMedia('(any-pointer: fine)').matches ? 'fine' :
+                  win.matchMedia('(any-pointer: coarse)').matches ? 'coarse' :
+                      win.matchMedia('(any-pointer: none)').matches ? 'none' : undefined),
+              pointer: (win.matchMedia('(pointer: fine)').matches ? 'fine' :
+                  win.matchMedia('(pointer: coarse)').matches ? 'coarse' :
+                      win.matchMedia('(pointer: none)').matches ? 'none' : undefined),
+              ['device-aspect-ratio']: (win.matchMedia(`(device-aspect-ratio: ${deviceAspectRatio})`).matches ? deviceAspectRatio : undefined),
+              ['device-screen']: (win.matchMedia(`(device-width: ${width}px) and (device-height: ${height}px)`).matches ? `${width} x ${height}` : undefined),
+              ['display-mode']: (win.matchMedia('(display-mode: fullscreen)').matches ? 'fullscreen' :
+                  win.matchMedia('(display-mode: standalone)').matches ? 'standalone' :
+                      win.matchMedia('(display-mode: minimal-ui)').matches ? 'minimal-ui' :
+                          win.matchMedia('(display-mode: browser)').matches ? 'browser' : undefined),
+              ['color-gamut']: (win.matchMedia('(color-gamut: srgb)').matches ? 'srgb' :
+                  win.matchMedia('(color-gamut: p3)').matches ? 'p3' :
+                      win.matchMedia('(color-gamut: rec2020)').matches ? 'rec2020' : undefined),
+              orientation: (win.matchMedia('(orientation: landscape)').matches ? 'landscape' :
+                  win.matchMedia('(orientation: portrait)').matches ? 'portrait' : undefined),
+          };
+          body.innerHTML = `
+		<style>
+		@media (prefers-reduced-motion: no-preference) {body {--prefers-reduced-motion: no-preference}}
+		@media (prefers-reduced-motion: reduce) {body {--prefers-reduced-motion: reduce}}
+		@media (prefers-color-scheme: light) {body {--prefers-color-scheme: light}}
+		@media (prefers-color-scheme: dark) {body {--prefers-color-scheme: dark}}
+		@media (monochrome) {body {--monochrome: monochrome}}
+		@media (monochrome: 0) {body {--monochrome: non-monochrome}}
+		@media (inverted-colors: inverted) {body {--inverted-colors: inverted}}
+		@media (inverted-colors: none) {body {--inverted-colors: none}}
+		@media (forced-colors: none) {body {--forced-colors: none}}
+		@media (forced-colors: active) {body {--forced-colors: active}}
+		@media (any-hover: hover) {body {--any-hover: hover}}
+		@media (any-hover: none) {body {--any-hover: none}}
+		@media (hover: hover) {body {--hover: hover}}
+		@media (hover: none) {body {--hover: none}}
+		@media (any-pointer: fine) {body {--any-pointer: fine}}
+		@media (any-pointer: coarse) {body {--any-pointer: coarse}}
+		@media (any-pointer: none) {body {--any-pointer: none}}
+		@media (pointer: fine) {body {--pointer: fine}}
+		@media (pointer: coarse) {body {--pointer: coarse}}
+		@media (pointer: none) {body {--pointer: none}}
+		@media (device-aspect-ratio: ${deviceAspectRatio}) {body {--device-aspect-ratio: ${deviceAspectRatio}}}
+		@media (device-width: ${width}px) and (device-height: ${height}px) {body {--device-screen: ${width} x ${height}}}
+		@media (display-mode: fullscreen) {body {--display-mode: fullscreen}}
+		@media (display-mode: standalone) {body {--display-mode: standalone}}
+		@media (display-mode: minimal-ui) {body {--display-mode: minimal-ui}}
+		@media (display-mode: browser) {body {--display-mode: browser}}
+		@media (color-gamut: srgb) {body {--color-gamut: srgb}}
+		@media (color-gamut: p3) {body {--color-gamut: p3}}
+		@media (color-gamut: rec2020) {body {--color-gamut: rec2020}}
+		@media (orientation: landscape) {body {--orientation: landscape}}
+		@media (orientation: portrait) {body {--orientation: portrait}}
+		</style>
+		`;
+          const style = getComputedStyle(body);
+          const mediaCSS = {
+              ['prefers-reduced-motion']: style.getPropertyValue('--prefers-reduced-motion').trim() || undefined,
+              ['prefers-color-scheme']: style.getPropertyValue('--prefers-color-scheme').trim() || undefined,
+              monochrome: style.getPropertyValue('--monochrome').trim() || undefined,
+              ['inverted-colors']: style.getPropertyValue('--inverted-colors').trim() || undefined,
+              ['forced-colors']: style.getPropertyValue('--forced-colors').trim() || undefined,
+              ['any-hover']: style.getPropertyValue('--any-hover').trim() || undefined,
+              hover: style.getPropertyValue('--hover').trim() || undefined,
+              ['any-pointer']: style.getPropertyValue('--any-pointer').trim() || undefined,
+              pointer: style.getPropertyValue('--pointer').trim() || undefined,
+              ['device-aspect-ratio']: style.getPropertyValue('--device-aspect-ratio').trim() || undefined,
+              ['device-screen']: style.getPropertyValue('--device-screen').trim() || undefined,
+              ['display-mode']: style.getPropertyValue('--display-mode').trim() || undefined,
+              ['color-gamut']: style.getPropertyValue('--color-gamut').trim() || undefined,
+              orientation: style.getPropertyValue('--orientation').trim() || undefined,
+          };
+          // get screen query
+          const screenQuery = getScreenMedia({ body, width, height });
+          logTestResult({ time: timer.stop(), test: 'css media', passed: true });
+          return { mediaCSS, matchMediaCSS, screenQuery };
+      }
+      catch (error) {
+          logTestResult({ test: 'css media', passed: false });
+          captureError(error);
+          return;
+      }
+  }
+  /*
+  export function cssMediaHTML(fp) {
+      if (!fp.css) {
+          return `
+          <div class="col-six undefined">
+              <strong>CSS Media Queries</strong>
+              <div>@media: ${HTMLNote.BLOCKED}</div>
+              <div>matchMedia: ${HTMLNote.BLOCKED}</div>
+              <div>touch device: ${HTMLNote.BLOCKED}</div>
+              <div>screen query: ${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          cssMedia: data,
+      } = fp
+      const {
+          $hash,
+          mediaCSS,
+          matchMediaCSS,
+          screenQuery,
+      } = data
+
+      return `
+      <div class="relative col-six">
+          <span class="aside-note">${performanceLogger.getLog()['css media']}</span>
+          <strong>CSS Media Queries</strong><span class="hash">${hashSlice($hash)}</span>
+          <div>@media: ${
+              !mediaCSS || !Object.keys(mediaCSS).filter((key) => !!mediaCSS[key]).length ?
+              HTMLNote.BLOCKED :
+              modal(
+                  'creep-css-media',
+                  `<strong>@media</strong><br><br>${Object.keys(mediaCSS).map((key) => `${key}: ${mediaCSS[key] || HTMLNote.UNSUPPORTED}`).join('<br>')}`,
+                  hashMini(mediaCSS),
+              )
+          }</div>
+          <div>matchMedia: ${
+              !matchMediaCSS || !Object.keys(matchMediaCSS).filter((key) => !!matchMediaCSS[key]).length ?
+              HTMLNote.BLOCKED :
+              modal(
+                  'creep-css-match-media',
+                  `<strong>matchMedia</strong><br><br>${Object.keys(matchMediaCSS).map((key) => `${key}: ${matchMediaCSS[key] || HTMLNote.UNSUPPORTED}`).join('<br>')}`,
+                  hashMini(matchMediaCSS),
+              )
+          }</div>
+          <div>touch device: ${!mediaCSS ? HTMLNote.BLOCKED : mediaCSS['any-pointer'] == 'coarse' ? true : HTMLNote.UNKNOWN}</div>
+          <div>screen query: <span class="${(LowerEntropy.SCREEN || LowerEntropy.IFRAME_SCREEN) ? 'bold-fail ' : ''}">
+              ${!screenQuery ? HTMLNote.BLOCKED : `${screenQuery.width} x ${screenQuery.height}`}
+          </span></div>
+      </div>
+      `
+  }
+  */
+
+  function getHTMLElementVersion() {
+      try {
+          const timer = createTimer();
+          timer.start();
+          const keys = [];
+          // eslint-disable-next-line guard-for-in
+          for (const key in document.documentElement) {
+              keys.push(key);
+          }
+          logTestResult({ time: timer.stop(), test: 'html element', passed: true });
+          return { keys };
+      }
+      catch (error) {
+          logTestResult({ test: 'html element', passed: false });
+          captureError(error);
+          return;
+      }
+  }
+  /*
+  export function htmlElementVersionHTML(fp) {
+      if (!fp.htmlElementVersion) {
+          return `
+          <div class="col-six undefined">
+              <strong>HTMLElement</strong>
+              <div>keys (0): ${HTMLNote.Blocked}</div>
+              <div>
+                  <div>${HTMLNote.Blocked}</div>
+              </div>
+          </div>`
+      }
+      const {
+          htmlElementVersion: {
+              $hash,
+              keys,
+          },
+      } = fp
+
+      return `
+      <div class="relative col-six">
+          <span class="aside-note">${performanceLogger.getLog()['html element']}</span>
+          <strong>HTMLElement</strong><span class="hash">${hashSlice($hash)}</span>
+          <div>keys (${count(keys)}): ${keys && keys.length ? modal('creep-html-element-version', keys.join(', ')) : HTMLNote.Blocked}</div>
+          <div class="blurred" id="html-element-samples">
+              <div>0% of engine</div>
+          </div>
+      </div>
+      `
+  }
+  */
+
+  // template views
+  function patch(oldEl, newEl, fn) {
+      if (!oldEl)
+          return null;
+      oldEl.parentNode?.replaceChild(newEl, oldEl);
+      return typeof fn === 'function' ? fn() : true;
+  }
+  function html(templateStr, ...expressionSet) {
+      const template = document.createElement('template');
+      template.innerHTML = templateStr.map((s, i) => `${s}${expressionSet[i] || ''}`).join('');
+      return document.importNode(template.content, true);
+  }
+
   function isFontOSBad(userAgentOS, fonts) {
       if (!userAgentOS || !fonts || !fonts.length)
           return false;
@@ -2092,6 +3612,69 @@
           return;
       }
   }
+  /*
+  export function fontsHTML(fp) {
+      if (!fp.fonts) {
+          return `
+          <div class="col-six undefined">
+              <strong>Fonts</strong>
+              <div>load (0):</div>
+              <div>apps:${HTMLNote.BLOCKED}</div>
+              <div class="block-text-large">${HTMLNote.BLOCKED}</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          fonts: {
+              $hash,
+              fontFaceLoadFonts,
+              platformVersion,
+              apps,
+              emojiSet,
+              pixelSizeSystemSum,
+              lied,
+          },
+      } = fp
+
+      const icon = {
+          'Linux': '<span class="icon linux"></span>',
+          'Apple': '<span class="icon apple"></span>',
+          'Windows': '<span class="icon windows"></span>',
+          'Android': '<span class="icon android"></span>',
+          'CrOS': '<span class="icon cros"></span>',
+      }
+
+      const blockHelpTitle = `FontFace.load()\nCSSStyleDeclaration.setProperty()\nblock-size\ninline-size\nhash: ${hashMini(emojiSet)}\n${(emojiSet||[]).map((x, i) => i && (i % 6 == 0) ? `${x}\n` : x).join('')}`
+      return `
+      <div class="relative col-six${lied ? ' rejected' : ''}">
+          <span class="aside-note">${performanceLogger.getLog().fonts}</span>
+          <strong>Fonts</strong><span class="${lied ? 'lies ' : LowerEntropy.FONTS ? 'bold-fail ' : ''}hash">${hashSlice($hash)}</span>
+          <div class="help" title="FontFace.load()">load (${fontFaceLoadFonts ? count(fontFaceLoadFonts) : '0'}/${'' + FONT_LIST.length}): ${platformVersion || ((fonts) => {
+              return !(fonts || []).length ? '' : (
+                  ((''+fonts).match(/Lucida Console/)||[]).length ? `${icon.Windows}Windows` :
+                  ((''+fonts).match(/Droid Sans Mono|Noto Color Emoji|Roboto/g)||[]).length == 3 ? `${icon.Linux}${icon.Android}Linux Android` :
+                  ((''+fonts).match(/Droid Sans Mono|Roboto/g)||[]).length == 2 ? `${icon.Android}Android` :
+                  ((''+fonts).match(/Noto Color Emoji|Roboto/g)||[]).length == 2 ? `${icon.CrOS}Chrome OS` :
+                  ((''+fonts).match(/Noto Color Emoji/)||[]).length ? `${icon.Linux}Linux` :
+                  ((''+fonts).match(/Arimo/)||[]).length ? `${icon.Linux}Linux` :
+                  ((''+fonts).match(/Helvetica Neue/g)||[]).length == 2 ? `${icon.Apple}Apple` :
+                  `${(fonts||[])[0]}...`
+              )
+          })(fontFaceLoadFonts)}</div>
+          <div>apps: ${(apps || []).length ? apps.join(', ') : HTMLNote.UNSUPPORTED}</div>
+          <div class="block-text-large help relative" title="FontFace.load()\nFontFaceSet.check()">
+              ${fontFaceLoadFonts.join(', ') || HTMLNote.UNSUPPORTED}
+          </div>
+          <div class="block-text help relative" title="${blockHelpTitle}">
+              <div>
+                  <br><span>${pixelSizeSystemSum || HTMLNote.UNSUPPORTED}</span>
+                  <br><span class="grey jumbo" style="font-family: ${CSS_FONT_FAMILY}">${formatEmojiSet(emojiSet)}</span>
+              </div>
+          </div>
+      </div>
+      `
+  }
+  */
 
   let WORKER_TYPE = '';
   let WORKER_NAME = '';
@@ -2514,6 +4097,143 @@
           return;
       }
   }
+  /*
+  export function workerScopeHTML(fp) {
+      if (!fp.workerScope) {
+          return `
+          <div class="col-six undefined">
+              <strong>Worker</strong>
+              <div>lang/timezone:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+              <div>gpu:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>
+          <div class="col-six undefined">
+              <div>userAgent:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+              <div>device:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+              <div>userAgentData:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const { workerScope: data } = fp
+
+      const {
+          lied,
+          locale,
+          systemCurrencyLocale,
+          engineCurrencyLocale,
+          localeEntropyIsTrusty,
+          localeIntlEntropyIsTrusty,
+          timezoneOffset,
+          timezoneLocation,
+          deviceMemory,
+          hardwareConcurrency,
+          language,
+          // languages,
+          platform,
+          userAgent,
+          uaPostReduction,
+          webglRenderer,
+          webglVendor,
+          gpu,
+          userAgentData,
+          system,
+          device,
+          $hash,
+      } = data || {}
+
+      const {
+          parts,
+          warnings,
+          gibbers,
+          confidence,
+          grade: confidenceGrade,
+          compressedGPU,
+      } = gpu || {}
+
+      return `
+      <span class="time">${performanceLogger.getLog()[`${WORKER_TYPE} worker`]}</span>
+      <span class="aside-note-bottom">${WORKER_NAME || ''}</span>
+
+      <div class="relative col-six${lied ? ' rejected' : ''}">
+
+          <strong>Worker</strong><span class="hash">${hashSlice($hash)}</span>
+          <div class="help">lang/timezone:</div>
+          <div class="block-text help" title="WorkerNavigator.language\nWorkerNavigator.languages\nIntl.Collator.resolvedOptions()\nIntl.DateTimeFormat.resolvedOptions()\nIntl.DisplayNames.resolvedOptions()\nIntl.ListFormat.resolvedOptions()\nIntl.NumberFormat.resolvedOptions()\nIntl.PluralRules.resolvedOptions()\nIntl.RelativeTimeFormat.resolvedOptions()\nNumber.toLocaleString()\nIntl.DateTimeFormat().resolvedOptions().timeZone\nDate.getDate()\nDate.getMonth()\nDate.parse()">
+              ${
+                  localeEntropyIsTrusty ? `${language} (${systemCurrencyLocale})` :
+                      `${language} (<span class="bold-fail">${engineCurrencyLocale}</span>)`
+              }
+              ${
+                  locale === language ? '' : localeIntlEntropyIsTrusty ? ` ${locale}` :
+                      ` <span class="bold-fail">${locale}</span>`
+              }
+              <br>${timezoneLocation} (${''+timezoneOffset})
+          </div>
+
+          <div class="relative">${
+              confidence ? `<span class="confidence-note">confidence: <span class="scale-up grade-${confidenceGrade}">${confidence}</span></span>` : ''
+          }gpu:</div>
+          <div class="block-text help" title="${
+              confidence ? `\nWebGLRenderingContext.getParameter()\ngpu compressed: ${compressedGPU}\nknown parts: ${parts || 'none'}\ngibberish: ${gibbers || 'none'}\nwarnings: ${warnings.join(', ') || 'none'}` : 'WebGLRenderingContext.getParameter()'
+          }">
+              ${webglVendor ? webglVendor : ''}
+              ${webglRenderer ? `<br>${webglRenderer}` : HTMLNote.UNSUPPORTED}
+          </div>
+
+      </div>
+      <div class="col-six${lied ? ' rejected' : ''}">
+
+          <div class="relative">userAgent:${!uaPostReduction ? '' : `<span class="confidence-note">ua reduction</span>`}</div>
+          <div class="block-text help" title="WorkerNavigator.userAgent">
+              <div>${userAgent || HTMLNote.UNSUPPORTED}</div>
+          </div>
+
+          <div>device:</div>
+          <div class="block-text help" title="WorkerNavigator.deviceMemory\nWorkerNavigator.hardwareConcurrency\nWorkerNavigator.platform\nWorkerNavigator.userAgent">
+              ${`${system}${platform ? ` (${platform})` : ''}`}
+              ${device ? `<br>${device}` : HTMLNote.BLOCKED}
+              ${
+                  hardwareConcurrency && deviceMemory ? `<br>cores: ${hardwareConcurrency}, ram: ${deviceMemory}` :
+                  hardwareConcurrency && !deviceMemory ? `<br>cores: ${hardwareConcurrency}` :
+                  !hardwareConcurrency && deviceMemory ? `<br>ram: ${deviceMemory}` : ''
+              }
+          </div>
+
+          <div>userAgentData:</div>
+          <div class="block-text help" title="WorkerNavigator.userAgentData\nNavigatorUAData.getHighEntropyValues()">
+              <div>
+              ${((userAgentData) => {
+                  const {
+                      architecture,
+                      bitness,
+                      brandsVersion,
+                      uaFullVersion,
+                      mobile,
+                      model,
+                      platformVersion,
+                      platform,
+                  } = userAgentData || {}
+
+                  // @ts-ignore
+                  const windowsRelease = computeWindowsRelease({ platform, platformVersion })
+
+                  return !userAgentData ? HTMLNote.UNSUPPORTED : `
+                      ${(brandsVersion || []).join(',')}${uaFullVersion ? ` (${uaFullVersion})` : ''}
+                      <br>${windowsRelease || `${platform} ${platformVersion}`} ${architecture ? `${architecture}${bitness ? `_${bitness}` : ''}` : ''}
+                      ${model ? `<br>${model}` : ''}
+                      ${mobile ? '<br>mobile' : ''}
+                  `
+              })(userAgentData)}
+              </div>
+          </div>
+
+      </div>
+      `
+  }
+  */
 
   // https://stackoverflow.com/a/22429679
   const hashMini = (x) => {
@@ -2538,1100 +4258,6 @@
           return hashHex;
       });
   };
-
-  const AUDIO_TRAP = Math.random();
-  async function hasFakeAudio() {
-      const context = new OfflineAudioContext(1, 100, 44100);
-      const oscillator = context.createOscillator();
-      oscillator.frequency.value = 0;
-      oscillator.start(0);
-      context.startRendering();
-      return new Promise((resolve) => {
-          context.oncomplete = (event) => {
-              const channelData = event.renderedBuffer.getChannelData?.(0);
-              if (!channelData)
-                  resolve(false);
-              resolve('' + [...new Set(channelData)] !== '0');
-          };
-      }).finally(() => oscillator.disconnect());
-  }
-  async function getOfflineAudioContext() {
-      try {
-          const timer = createTimer();
-          await queueEvent(timer);
-          try {
-              // @ts-expect-error if unsupported
-              window.OfflineAudioContext = OfflineAudioContext || webkitOfflineAudioContext;
-          }
-          catch (err) { }
-          if (!window.OfflineAudioContext) {
-              logTestResult({ test: 'audio', passed: false });
-              return;
-          }
-          // detect lies
-          const channelDataLie = lieProps['AudioBuffer.getChannelData'];
-          const copyFromChannelLie = lieProps['AudioBuffer.copyFromChannel'];
-          let lied = (channelDataLie || copyFromChannelLie) || false;
-          const bufferLen = 5000;
-          const context = new OfflineAudioContext(1, bufferLen, 44100);
-          const analyser = context.createAnalyser();
-          const oscillator = context.createOscillator();
-          const dynamicsCompressor = context.createDynamicsCompressor();
-          const biquadFilter = context.createBiquadFilter();
-          // detect lie
-          const dataArray = new Float32Array(analyser.frequencyBinCount);
-          analyser.getFloatFrequencyData?.(dataArray);
-          const floatFrequencyUniqueDataSize = new Set(dataArray).size;
-          if (floatFrequencyUniqueDataSize > 1) {
-              lied = true;
-              const floatFrequencyDataLie = `expected -Infinity (silence) and got ${floatFrequencyUniqueDataSize} frequencies`;
-              documentLie(`AnalyserNode.getFloatFrequencyData`, floatFrequencyDataLie);
-          }
-          const values = {
-              ['AnalyserNode.channelCount']: attempt(() => analyser.channelCount),
-              ['AnalyserNode.channelCountMode']: attempt(() => analyser.channelCountMode),
-              ['AnalyserNode.channelInterpretation']: attempt(() => analyser.channelInterpretation),
-              ['AnalyserNode.context.sampleRate']: attempt(() => analyser.context.sampleRate),
-              ['AnalyserNode.fftSize']: attempt(() => analyser.fftSize),
-              ['AnalyserNode.frequencyBinCount']: attempt(() => analyser.frequencyBinCount),
-              ['AnalyserNode.maxDecibels']: attempt(() => analyser.maxDecibels),
-              ['AnalyserNode.minDecibels']: attempt(() => analyser.minDecibels),
-              ['AnalyserNode.numberOfInputs']: attempt(() => analyser.numberOfInputs),
-              ['AnalyserNode.numberOfOutputs']: attempt(() => analyser.numberOfOutputs),
-              ['AnalyserNode.smoothingTimeConstant']: attempt(() => analyser.smoothingTimeConstant),
-              ['AnalyserNode.context.listener.forwardX.maxValue']: attempt(() => {
-                  return caniuse(() => analyser.context.listener.forwardX.maxValue);
-              }),
-              ['BiquadFilterNode.gain.maxValue']: attempt(() => biquadFilter.gain.maxValue),
-              ['BiquadFilterNode.frequency.defaultValue']: attempt(() => biquadFilter.frequency.defaultValue),
-              ['BiquadFilterNode.frequency.maxValue']: attempt(() => biquadFilter.frequency.maxValue),
-              ['DynamicsCompressorNode.attack.defaultValue']: attempt(() => dynamicsCompressor.attack.defaultValue),
-              ['DynamicsCompressorNode.knee.defaultValue']: attempt(() => dynamicsCompressor.knee.defaultValue),
-              ['DynamicsCompressorNode.knee.maxValue']: attempt(() => dynamicsCompressor.knee.maxValue),
-              ['DynamicsCompressorNode.ratio.defaultValue']: attempt(() => dynamicsCompressor.ratio.defaultValue),
-              ['DynamicsCompressorNode.ratio.maxValue']: attempt(() => dynamicsCompressor.ratio.maxValue),
-              ['DynamicsCompressorNode.release.defaultValue']: attempt(() => dynamicsCompressor.release.defaultValue),
-              ['DynamicsCompressorNode.release.maxValue']: attempt(() => dynamicsCompressor.release.maxValue),
-              ['DynamicsCompressorNode.threshold.defaultValue']: attempt(() => dynamicsCompressor.threshold.defaultValue),
-              ['DynamicsCompressorNode.threshold.minValue']: attempt(() => dynamicsCompressor.threshold.minValue),
-              ['OscillatorNode.detune.maxValue']: attempt(() => oscillator.detune.maxValue),
-              ['OscillatorNode.detune.minValue']: attempt(() => oscillator.detune.minValue),
-              ['OscillatorNode.frequency.defaultValue']: attempt(() => oscillator.frequency.defaultValue),
-              ['OscillatorNode.frequency.maxValue']: attempt(() => oscillator.frequency.maxValue),
-              ['OscillatorNode.frequency.minValue']: attempt(() => oscillator.frequency.minValue),
-          };
-          const getRenderedBuffer = (context) => (new Promise((resolve) => {
-              const analyser = context.createAnalyser();
-              const oscillator = context.createOscillator();
-              const dynamicsCompressor = context.createDynamicsCompressor();
-              try {
-                  oscillator.type = 'triangle';
-                  oscillator.frequency.value = 10000;
-                  dynamicsCompressor.threshold.value = -50;
-                  dynamicsCompressor.knee.value = 40;
-                  dynamicsCompressor.attack.value = 0;
-              }
-              catch (err) { }
-              oscillator.connect(dynamicsCompressor);
-              dynamicsCompressor.connect(analyser);
-              dynamicsCompressor.connect(context.destination);
-              oscillator.start(0);
-              context.startRendering();
-              return context.addEventListener('complete', (event) => {
-                  try {
-                      dynamicsCompressor.disconnect();
-                      oscillator.disconnect();
-                      const floatFrequencyData = new Float32Array(analyser.frequencyBinCount);
-                      analyser.getFloatFrequencyData?.(floatFrequencyData);
-                      const floatTimeDomainData = new Float32Array(analyser.fftSize);
-                      if ('getFloatTimeDomainData' in analyser) {
-                          analyser.getFloatTimeDomainData(floatTimeDomainData);
-                      }
-                      return resolve({
-                          floatFrequencyData,
-                          floatTimeDomainData,
-                          buffer: event.renderedBuffer,
-                          compressorGainReduction: (
-                          // @ts-expect-error if unsupported
-                          dynamicsCompressor.reduction.value || // webkit
-                              dynamicsCompressor.reduction),
-                      });
-                  }
-                  catch (error) {
-                      return resolve(null);
-                  }
-              });
-          }));
-          await queueEvent(timer);
-          const [audioData, audioIsFake,] = await Promise.all([
-              getRenderedBuffer(new OfflineAudioContext(1, bufferLen, 44100)),
-              hasFakeAudio().catch(() => false),
-          ]);
-          const { floatFrequencyData, floatTimeDomainData, buffer, compressorGainReduction, } = audioData || {};
-          await queueEvent(timer);
-          const getSnapshot = (arr, start, end) => {
-              const collection = [];
-              for (let i = start; i < end; i++) {
-                  collection.push(arr[i]);
-              }
-              return collection;
-          };
-          const getSum = (arr) => !arr ? 0 : [...arr]
-              .reduce((acc, curr) => (acc += Math.abs(curr)), 0);
-          const floatFrequencyDataSum = getSum(floatFrequencyData);
-          const floatTimeDomainDataSum = getSum(floatTimeDomainData);
-          const copy = new Float32Array(bufferLen);
-          let bins = new Float32Array();
-          if (buffer) {
-              buffer.copyFromChannel?.(copy, 0);
-              bins = buffer.getChannelData?.(0) || [];
-          }
-          const copySample = getSnapshot([...copy], 4500, 4600);
-          const binsSample = getSnapshot([...bins], 4500, 4600);
-          const sampleSum = getSum(getSnapshot([...bins], 4500, bufferLen));
-          // detect lies
-          if (audioIsFake) {
-              lied = true;
-              documentLie('AudioBuffer', 'audio is fake');
-          }
-          // sample matching
-          const matching = '' + binsSample == '' + copySample;
-          const copyFromChannelSupported = ('copyFromChannel' in AudioBuffer.prototype);
-          if (copyFromChannelSupported && !matching) {
-              lied = true;
-              const audioSampleLie = 'getChannelData and copyFromChannel samples mismatch';
-              documentLie('AudioBuffer', audioSampleLie);
-          }
-          // sample uniqueness
-          const totalUniqueSamples = new Set([...bins]).size;
-          if (totalUniqueSamples == bufferLen) {
-              const audioUniquenessTrash = `${totalUniqueSamples} unique samples of ${bufferLen} is too high`;
-              sendToTrash('AudioBuffer', audioUniquenessTrash);
-          }
-          // sample noise factor
-          const getRandFromRange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-          const getCopyFrom = (rand, buffer, copy) => {
-              const { length } = buffer;
-              const max = 20;
-              const start = getRandFromRange(275, length - (max + 1));
-              const mid = start + max / 2;
-              const end = start + max;
-              buffer.getChannelData(0)[start] = rand;
-              buffer.getChannelData(0)[mid] = rand;
-              buffer.getChannelData(0)[end] = rand;
-              buffer.copyFromChannel(copy, 0);
-              const attack = [
-                  buffer.getChannelData(0)[start] === 0 ? Math.random() : 0,
-                  buffer.getChannelData(0)[mid] === 0 ? Math.random() : 0,
-                  buffer.getChannelData(0)[end] === 0 ? Math.random() : 0,
-              ];
-              return [...new Set([...buffer.getChannelData(0), ...copy, ...attack])].filter((x) => x !== 0);
-          };
-          const getCopyTo = (rand, buffer, copy) => {
-              buffer.copyToChannel(copy.map(() => rand), 0);
-              const frequency = buffer.getChannelData(0)[0];
-              const dataAttacked = [...buffer.getChannelData(0)]
-                  .map((x) => x !== frequency || !x ? Math.random() : x);
-              return dataAttacked.filter((x) => x !== frequency);
-          };
-          const getNoiseFactor = () => {
-              const length = 2000;
-              try {
-                  const result = [...new Set([
-                          ...getCopyFrom(AUDIO_TRAP, new AudioBuffer({ length, sampleRate: 44100 }), new Float32Array(length)),
-                          ...getCopyTo(AUDIO_TRAP, new AudioBuffer({ length, sampleRate: 44100 }), new Float32Array(length)),
-                      ])];
-                  return +(result.length !== 1 &&
-                      result.reduce((acc, n) => acc += +n, 0));
-              }
-              catch (error) {
-                  console.error(error);
-                  return 0;
-              }
-          };
-          const noiseFactor = getNoiseFactor();
-          const noise = (noiseFactor || [...new Set(bins.slice(0, 100))]
-              .reduce((acc, n) => acc += n, 0));
-          // Locked Patterns
-          const known = {
-              /* BLINK */
-              // 124.04347527516074/124.04347518575378
-              '-20.538286209106445,164537.64796829224,502.5999283068122': [124.04347527516074],
-              '-20.538288116455078,164537.64796829224,502.5999283068122': [124.04347527516074],
-              '-20.538288116455078,164537.64795303345,502.5999283068122': [
-                  124.04347527516074,
-                  124.04347518575378,
-                  // sus:
-                  124.04347519320436,
-                  124.04347523045726,
-              ],
-              '-20.538286209106445,164537.64805984497,502.5999283068122': [124.04347527516074],
-              '-20.538288116455078,164537.64805984497,502.5999283068122': [
-                  124.04347527516074,
-                  124.04347518575378,
-                  // sus
-                  124.04347520065494,
-                  124.04347523790784,
-                  124.043475252809,
-                  124.04347526025958,
-                  124.04347522300668,
-                  124.04347523045726,
-                  124.04347524535842,
-              ],
-              // 124.04344884395687
-              '-20.538288116455078,164881.9727935791,502.59990317908887': [124.04344884395687],
-              '-20.538288116455078,164881.9729309082,502.59990317908887': [124.04344884395687],
-              // 124.0434488439787
-              '-20.538286209106445,164882.2082748413,502.59990317911434': [124.0434488439787],
-              '-20.538288116455078,164882.20836639404,502.59990317911434': [124.0434488439787],
-              // 124.04344968475198
-              '-20.538286209106445,164863.45319366455,502.5999033495791': [124.04344968475198],
-              '-20.538288116455078,164863.45319366455,502.5999033495791': [
-                  124.04344968475198,
-                  124.04375314689969,
-                  // sus
-                  124.04341541208123,
-              ],
-              // 124.04347503720783 (rare)
-              '-20.538288116455078,164531.82670593262,502.59992767886797': [
-                  124.04347503720783,
-                  // sus
-                  124.04347494780086,
-                  124.04347495525144,
-                  124.04347499250434,
-                  124.0434750074055,
-              ],
-              // 124.04347657808103
-              '-20.538286209106445,164540.1567993164,502.59992209258417': [124.04347657808103],
-              '-20.538288116455078,164540.1567993164,502.59992209258417': [
-                  124.04347657808103,
-                  124.0434765110258,
-                  124.04347656317987,
-                  // sus
-                  124.04347657063045,
-                  124.04378004022874,
-              ],
-              '-20.538288116455078,164540.1580810547,502.59992209258417': [124.04347657808103],
-              // 124.080722568091/124.04347730590962 (rare)
-              '-20.535268783569336,164940.360786438,502.69695458233764': [124.080722568091],
-              '-20.538288116455078,164538.55073928833,502.5999307175407': [124.04347730590962],
-              // Android/Linux
-              '-20.535268783569336,164948.14596557617,502.6969545823631': [124.08072256811283],
-              '-20.535268783569336,164926.65912628174,502.6969610930064': [124.08072766105033],
-              '-20.535268783569336,164932.96168518066,502.69696179985476': [124.08072787802666],
-              '-20.535268783569336,164931.54252624512,502.6969617998802': [124.08072787804849],
-              '-20.535268783569336,164591.9659729004,502.6969925059784': [124.08074500028306],
-              '-20.535268783569336,164590.4111480713,502.6969947774742': [124.0807470110085],
-              '-20.535268783569336,164590.41115570068,502.6969947774742': [124.0807470110085],
-              '-20.535268783569336,164593.64263916016,502.69700490119067': [124.08075528279005],
-              '-20.535268783569336,164595.0285797119,502.69700578315314': [124.08075643483608],
-              // sus
-              '-20.538288116455078,164860.96576690674,502.6075748118915': [124.0434496279413],
-              '-20.538288116455078,164860.9938583374,502.6073723861407': [124.04344962817413],
-              '-20.538288116455078,164862.14078521729,502.59991004130643': [124.04345734833623],
-              '-20.538288116455078,164534.50047683716,502.61542110471055': [124.04347520368174],
-              '-20.538288116455078,164535.1324043274,502.6079200572931': [124.04347521997988],
-              '-20.538288116455078,164535.51135635376,502.60633126448374': [124.04347522952594],
-              /* GECKO */
-              '-31.509262084960938,167722.6894454956,148.42717787250876': [35.7383295930922],
-              '-31.509262084960938,167728.72756958008,148.427184343338': [35.73833402246237],
-              '-31.50218963623047,167721.27517700195,148.47537828609347': [35.74996031448245],
-              '-31.502185821533203,167727.52931976318,148.47542023658752': [35.7499681673944],
-              /* WEBKIT */
-              '-20.538288116455078,164873.80361557007,502.59989904452596': [124.0434485301812],
-              '-20.538288116455078,164863.47760391235,502.5999033453372': [124.0434496849557],
-              '-20.538288116455078,164876.62466049194,502.5998911961724': [124.043453265891],
-              '-20.538288116455078,164862.14879989624,502.59991004130643': [124.04345734833623],
-              '-20.538288116455078,164896.54167175293,502.5999054916465': [124.04345808873768],
-              '-29.837873458862305,163206.43050384521,0': [35.10892717540264],
-              '-29.837873458862305,163224.69785308838,0': [35.10892752557993],
-              '-29.83786964416504,163209.17245483398,0': [35.10893232002854],
-              '-29.83786964416504,163202.77336883545,0': [35.10893253237009],
-          };
-          if (noise) {
-              lied = true;
-              documentLie('AudioBuffer', 'sample noise detected');
-          }
-          const pattern = '' + [
-              compressorGainReduction,
-              floatFrequencyDataSum,
-              floatTimeDomainDataSum,
-          ];
-          const knownPattern = known[pattern];
-          if (knownPattern && !knownPattern.includes(sampleSum)) {
-              LowerEntropy.AUDIO = true;
-              sendToTrash('AudioBuffer', 'suspicious frequency data');
-          }
-          logTestResult({ time: timer.stop(), test: 'audio', passed: true });
-          return {
-              totalUniqueSamples,
-              compressorGainReduction,
-              floatFrequencyDataSum,
-              floatTimeDomainDataSum,
-              sampleSum,
-              binsSample,
-              copySample: copyFromChannelSupported ? copySample : [undefined],
-              values,
-              noise,
-              lied,
-          };
-      }
-      catch (error) {
-          logTestResult({ test: 'audio', passed: false });
-          captureError(error, 'OfflineAudioContext failed or blocked by client');
-          return;
-      }
-  }
-
-  // inspired by https://arkenfox.github.io/TZP/tests/canvasnoise.html
-  let pixelImageRandom = '';
-  const getPixelMods = () => {
-      const pattern1 = [];
-      const pattern2 = [];
-      const len = 8; // canvas dimensions
-      const alpha = 255;
-      const visualMultiplier = 5;
-      try {
-          // create 2 canvas contexts
-          const options = {
-              willReadFrequently: true,
-              desynchronized: true,
-          };
-          const canvasDisplay1 = document.createElement('canvas');
-          const canvasDisplay2 = document.createElement('canvas');
-          const canvas1 = document.createElement('canvas');
-          const canvas2 = document.createElement('canvas');
-          const contextDisplay1 = canvasDisplay1.getContext('2d', options);
-          const contextDisplay2 = canvasDisplay2.getContext('2d', options);
-          const context1 = canvas1.getContext('2d', options);
-          const context2 = canvas2.getContext('2d', options);
-          if (!contextDisplay1 || !contextDisplay2 || !context1 || !context2) {
-              throw new Error('canvas context blocked');
-          }
-          // set the dimensions
-          canvasDisplay1.width = len * visualMultiplier;
-          canvasDisplay1.height = len * visualMultiplier;
-          canvasDisplay2.width = len * visualMultiplier;
-          canvasDisplay2.height = len * visualMultiplier;
-          canvas1.width = len;
-          canvas1.height = len;
-          canvas2.width = len;
-          canvas2.height = len;
-          [...Array(len)].forEach((e, x) => [...Array(len)].forEach((e, y) => {
-              const red = ~~(Math.random() * 256);
-              const green = ~~(Math.random() * 256);
-              const blue = ~~(Math.random() * 256);
-              const colors = `${red}, ${green}, ${blue}, ${alpha}`;
-              context1.fillStyle = `rgba(${colors})`;
-              context1.fillRect(x, y, 1, 1);
-              // capture data in visuals
-              contextDisplay1.fillStyle = `rgba(${colors})`;
-              contextDisplay1.fillRect(x * visualMultiplier, y * visualMultiplier, 1 * visualMultiplier, 1 * visualMultiplier);
-              return pattern1.push(colors); // collect the pixel pattern
-          }));
-          [...Array(len)].forEach((e, x) => [...Array(len)].forEach((e, y) => {
-              // get context1 pixel data and mirror to context2
-              const { data: [red, green, blue, alpha], } = context1.getImageData(x, y, 1, 1) || {};
-              const colors = `${red}, ${green}, ${blue}, ${alpha}`;
-              context2.fillStyle = `rgba(${colors})`;
-              context2.fillRect(x, y, 1, 1);
-              // capture noise in visuals
-              const { data: [red2, green2, blue2, alpha2], } = context2.getImageData(x, y, 1, 1) || {};
-              const colorsDisplay = `
-				${red != red2 ? red2 : 255},
-				${green != green2 ? green2 : 255},
-				${blue != blue2 ? blue2 : 255},
-				${alpha != alpha2 ? alpha2 : 1}
-			`;
-              contextDisplay2.fillStyle = `rgba(${colorsDisplay})`;
-              contextDisplay2.fillRect(x * visualMultiplier, y * visualMultiplier, 1 * visualMultiplier, 1 * visualMultiplier);
-              return pattern2.push(colors); // collect the pixel pattern
-          }));
-          // compare the pattern collections and collect diffs
-          const patternDiffs = [];
-          const rgbaChannels = new Set();
-          [...Array(pattern1.length)].forEach((e, i) => {
-              const pixelColor1 = pattern1[i];
-              const pixelColor2 = pattern2[i];
-              if (pixelColor1 != pixelColor2) {
-                  const rgbaValues1 = pixelColor1.split(',');
-                  const rgbaValues2 = pixelColor2.split(',');
-                  const colors = [
-                      rgbaValues1[0] != rgbaValues2[0] ? 'r' : '',
-                      rgbaValues1[1] != rgbaValues2[1] ? 'g' : '',
-                      rgbaValues1[2] != rgbaValues2[2] ? 'b' : '',
-                      rgbaValues1[3] != rgbaValues2[3] ? 'a' : '',
-                  ].join('');
-                  rgbaChannels.add(colors);
-                  patternDiffs.push([i, colors]);
-              }
-          });
-          pixelImageRandom = canvasDisplay1.toDataURL(); // template use only
-          const pixelImage = canvasDisplay2.toDataURL();
-          const rgba = rgbaChannels.size ? [...rgbaChannels].sort().join(', ') : undefined;
-          const pixels = patternDiffs.length || undefined;
-          return { rgba, pixels, pixelImage };
-      }
-      catch (error) {
-          return console.error(error);
-      }
-  };
-  // based on and inspired by https://github.com/antoinevastel/picasso-like-canvas-fingerprinting
-  const paintCanvas = ({ canvas, context, strokeText = false, cssFontFamily = '', area = { width: 50, height: 50 }, rounds = 10, maxShadowBlur = 50, seed = 500, offset = 2001000001, multiplier = 15000, }) => {
-      if (!context) {
-          return;
-      }
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      canvas.width = area.width;
-      canvas.height = area.height;
-      if (canvas.style) {
-          canvas.style.display = 'none';
-      }
-      const createPicassoSeed = ({ seed, offset, multiplier }) => {
-          let current = Number(seed) % Number(offset);
-          const getNextSeed = () => {
-              current = (Number(multiplier) * current) % Number(offset);
-              return current;
-          };
-          return {
-              getNextSeed,
-          };
-      };
-      const picassoSeed = createPicassoSeed({ seed, offset, multiplier });
-      const { getNextSeed } = picassoSeed;
-      const patchSeed = (current, offset, maxBound, computeFloat) => {
-          const result = (((current - 1) / offset) * (maxBound || 1)) || 0;
-          return computeFloat ? result : Math.floor(result);
-      };
-      const addRandomCanvasGradient = (context, offset, area, colors, getNextSeed) => {
-          const { width, height } = area;
-          const canvasGradient = context.createRadialGradient(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width));
-          canvasGradient.addColorStop(0, colors[patchSeed(getNextSeed(), offset, colors.length)]);
-          canvasGradient.addColorStop(1, colors[patchSeed(getNextSeed(), offset, colors.length)]);
-          context.fillStyle = canvasGradient;
-      };
-      const colors = [
-          '#FF6633', '#FFB399', '#FF33FF', '#FFFF99', '#00B3E6',
-          '#E6B333', '#3366E6', '#999966', '#99FF99', '#B34D4D',
-          '#80B300', '#809900', '#E6B3B3', '#6680B3', '#66991A',
-          '#FF99E6', '#CCFF1A', '#FF1A66', '#E6331A', '#33FFCC',
-          '#66994D', '#B366CC', '#4D8000', '#B33300', '#CC80CC',
-          '#66664D', '#991AFF', '#E666FF', '#4DB3FF', '#1AB399',
-          '#E666B3', '#33991A', '#CC9999', '#B3B31A', '#00E680',
-          '#4D8066', '#809980', '#E6FF80', '#1AFF33', '#999933',
-          '#FF3380', '#CCCC00', '#66E64D', '#4D80CC', '#9900B3',
-          '#E64D66', '#4DB380', '#FF4D4D', '#99E6E6', '#6666FF',
-      ];
-      const drawOutlineOfText = (context, offset, area, getNextSeed) => {
-          const { width, height } = area;
-          const fontSize = 2.99;
-          context.font = `${height / fontSize}px ${cssFontFamily.replace(/!important/gm, '')}`;
-          context.strokeText('👾A', patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width));
-      };
-      const createCircularArc = (context, offset, area, getNextSeed) => {
-          const { width, height } = area;
-          context.beginPath();
-          context.arc(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, Math.min(width, height)), patchSeed(getNextSeed(), offset, 2 * Math.PI, true), patchSeed(getNextSeed(), offset, 2 * Math.PI, true));
-          context.stroke();
-      };
-      const createBezierCurve = (context, offset, area, getNextSeed) => {
-          const { width, height } = area;
-          context.beginPath();
-          context.moveTo(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height));
-          context.bezierCurveTo(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height));
-          context.stroke();
-      };
-      const createQuadraticCurve = (context, offset, area, getNextSeed) => {
-          const { width, height } = area;
-          context.beginPath();
-          context.moveTo(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height));
-          context.quadraticCurveTo(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height));
-          context.stroke();
-      };
-      const createEllipticalArc = (context, offset, area, getNextSeed) => {
-          if (!('ellipse' in context)) {
-              return;
-          }
-          const { width, height } = area;
-          context.beginPath();
-          context.ellipse(patchSeed(getNextSeed(), offset, width), patchSeed(getNextSeed(), offset, height), patchSeed(getNextSeed(), offset, Math.floor(width / 2)), patchSeed(getNextSeed(), offset, Math.floor(height / 2)), patchSeed(getNextSeed(), offset, 2 * Math.PI, true), patchSeed(getNextSeed(), offset, 2 * Math.PI, true), patchSeed(getNextSeed(), offset, 2 * Math.PI, true));
-          context.stroke();
-      };
-      const methods = [
-          createCircularArc,
-          createBezierCurve,
-          createQuadraticCurve,
-      ];
-      if (!IS_WEBKIT)
-          methods.push(createEllipticalArc); // unstable in webkit
-      if (strokeText)
-          methods.push(drawOutlineOfText);
-      [...Array(rounds)].forEach((x) => {
-          addRandomCanvasGradient(context, offset, area, colors, getNextSeed);
-          context.shadowBlur = patchSeed(getNextSeed(), offset, maxShadowBlur, true);
-          context.shadowColor = colors[patchSeed(getNextSeed(), offset, colors.length)];
-          const nextMethod = methods[patchSeed(getNextSeed(), offset, methods.length)];
-          nextMethod(context, offset, area, getNextSeed);
-          context.fill();
-      });
-      return;
-  };
-  async function getCanvas2d() {
-      try {
-          const timer = createTimer();
-          await queueEvent(timer);
-          const dataLie = lieProps['HTMLCanvasElement.toDataURL'];
-          const contextLie = lieProps['HTMLCanvasElement.getContext'];
-          const imageDataLie = (lieProps['CanvasRenderingContext2D.fillText'] ||
-              lieProps['CanvasRenderingContext2D.font'] ||
-              lieProps['CanvasRenderingContext2D.getImageData'] ||
-              lieProps['CanvasRenderingContext2D.strokeText']);
-          const codePointLie = lieProps['String.fromCodePoint'];
-          let textMetricsLie = (lieProps['CanvasRenderingContext2D.measureText'] ||
-              lieProps['TextMetrics.actualBoundingBoxAscent'] ||
-              lieProps['TextMetrics.actualBoundingBoxDescent'] ||
-              lieProps['TextMetrics.actualBoundingBoxLeft'] ||
-              lieProps['TextMetrics.actualBoundingBoxRight'] ||
-              lieProps['TextMetrics.fontBoundingBoxAscent'] ||
-              lieProps['TextMetrics.fontBoundingBoxDescent'] ||
-              lieProps['TextMetrics.width']);
-          let lied = (dataLie ||
-              contextLie ||
-              imageDataLie ||
-              textMetricsLie ||
-              codePointLie) || false;
-          // create canvas context
-          let win = window;
-          if (!LIKE_BRAVE && PHANTOM_DARKNESS) {
-              win = PHANTOM_DARKNESS;
-          }
-          const doc = win.document;
-          const canvas = doc.createElement('canvas');
-          const context = canvas.getContext('2d');
-          const canvasCPU = doc.createElement('canvas');
-          const contextCPU = canvasCPU.getContext('2d', {
-              desynchronized: true,
-              willReadFrequently: true,
-          });
-          if (!context) {
-              throw new Error('canvas context blocked');
-          }
-          await queueEvent(timer);
-          const imageSizeMax = IS_WEBKIT ? 50 : 75; // webkit is unstable
-          paintCanvas({
-              canvas,
-              context,
-              strokeText: true,
-              cssFontFamily: CSS_FONT_FAMILY,
-              area: { width: imageSizeMax, height: imageSizeMax },
-              rounds: 10,
-          });
-          const dataURI = canvas.toDataURL();
-          await queueEvent(timer);
-          const mods = getPixelMods();
-          // TextMetrics: get emoji set and system
-          await queueEvent(timer);
-          context.font = `10px ${CSS_FONT_FAMILY.replace(/!important/gm, '')}`;
-          const pattern = new Set();
-          const emojiSet = EMOJIS.reduce((emojiSet, emoji) => {
-              const { actualBoundingBoxAscent, actualBoundingBoxDescent, actualBoundingBoxLeft, actualBoundingBoxRight, fontBoundingBoxAscent, fontBoundingBoxDescent, width, } = context.measureText(emoji) || {};
-              const dimensions = [
-                  actualBoundingBoxAscent,
-                  actualBoundingBoxDescent,
-                  actualBoundingBoxLeft,
-                  actualBoundingBoxRight,
-                  fontBoundingBoxAscent,
-                  fontBoundingBoxDescent,
-                  width,
-              ].join(',');
-              if (!pattern.has(dimensions)) {
-                  pattern.add(dimensions);
-                  emojiSet.add(emoji);
-              }
-              return emojiSet;
-          }, new Set());
-          // textMetrics System Sum
-          const textMetricsSystemSum = 0.00001 * [...pattern].map((x) => {
-              return x.split(',').reduce((acc, x) => acc += (+x || 0), 0);
-          }).reduce((acc, x) => acc += x, 0);
-          // Paint
-          const maxSize = 75;
-          await queueEvent(timer);
-          paintCanvas({
-              canvas,
-              context,
-              area: { width: maxSize, height: maxSize },
-          }); // clears image
-          const paintURI = canvas.toDataURL();
-          // Paint with CPU
-          await queueEvent(timer);
-          paintCanvas({
-              canvas: canvasCPU,
-              context: contextCPU,
-              area: { width: maxSize, height: maxSize },
-          }); // clears image
-          const paintCpuURI = canvasCPU.toDataURL();
-          // Text
-          context.restore();
-          context.clearRect(0, 0, canvas.width, canvas.height);
-          canvas.width = 50;
-          canvas.height = 50;
-          context.font = `50px ${CSS_FONT_FAMILY.replace(/!important/gm, '')}`;
-          context.fillText('A', 7, 37);
-          const textURI = canvas.toDataURL();
-          // Emoji
-          context.restore();
-          context.clearRect(0, 0, canvas.width, canvas.height);
-          canvas.width = 50;
-          canvas.height = 50;
-          context.font = `35px ${CSS_FONT_FAMILY.replace(/!important/gm, '')}`;
-          context.fillText('👾', 0, 37);
-          const emojiURI = canvas.toDataURL();
-          // lies
-          context.clearRect(0, 0, canvas.width, canvas.height);
-          if ((mods && mods.pixels) || !!Math.max(...context.getImageData(0, 0, 8, 8).data)) {
-              lied = true;
-              documentLie(`CanvasRenderingContext2D.getImageData`, `pixel data modified`);
-          }
-          // verify low entropy image data
-          canvas.width = 2;
-          canvas.height = 2;
-          context.fillStyle = '#000';
-          context.fillRect(0, 0, canvas.width, canvas.height);
-          context.fillStyle = '#fff';
-          context.fillRect(2, 2, 1, 1);
-          context.beginPath();
-          context.arc(0, 0, 2, 0, 1, true);
-          context.closePath();
-          context.fill();
-          const imageDataLowEntropy = context.getImageData(0, 0, 2, 2).data.join('');
-          const KnownImageData = {
-              BLINK: [
-                  '255255255255192192192255240240240255484848255',
-                  '255255255255177177177255246246246255535353255',
-                  '255255255255128128128255191191191255646464255',
-                  '255255255255178178178255247247247255565656255',
-                  '255255255255174174174255242242242255474747255',
-                  '255255255255229229229255127127127255686868255',
-                  '255255255255192192192255244244244255535353255',
-              ],
-              GECKO: [
-                  '255255255255192192192255240240240255484848255',
-                  '255255255255191191191255239239239255646464255',
-                  '255255255255191191191255223223223255606060255',
-                  '255255255255171171171255223223223255606060255', // ?
-              ],
-              WEBKIT: [
-                  '255255255255185185185255233233233255474747255',
-                  '255255255255185185185255229229229255474747255',
-                  '255255255255185185185255218218218255474747255',
-                  '255255255255192192192255240240240255484848255',
-                  '255255255255178178178255247247247255565656255',
-                  '255255255255178178178255247247247255565656255',
-                  '255255255255192192192255240240240255484848255',
-                  '255255255255186186186255218218218255464646255',
-              ],
-          };
-          Analysis.imageDataLowEntropy = imageDataLowEntropy;
-          if (IS_BLINK && !KnownImageData.BLINK.includes(imageDataLowEntropy)) {
-              LowerEntropy.CANVAS = true;
-          }
-          else if (IS_GECKO && !KnownImageData.GECKO.includes(imageDataLowEntropy)) {
-              LowerEntropy.CANVAS = true;
-          }
-          else if (IS_WEBKIT && !KnownImageData.WEBKIT.includes(imageDataLowEntropy)) {
-              LowerEntropy.CANVAS = true;
-          }
-          if (LowerEntropy.CANVAS) {
-              sendToTrash('CanvasRenderingContext2D.getImageData', 'suspicious pixel data');
-          }
-          const getTextMetricsFloatLie = (context) => {
-              const isFloat = (n) => n % 1 !== 0;
-              const { actualBoundingBoxAscent: abba, actualBoundingBoxDescent: abbd, actualBoundingBoxLeft: abbl, actualBoundingBoxRight: abbr, fontBoundingBoxAscent: fbba, fontBoundingBoxDescent: fbbd,
-              // width: w,
-               } = context.measureText('') || {};
-              const lied = [
-                  abba,
-                  abbd,
-                  abbl,
-                  abbr,
-                  fbba,
-                  fbbd,
-              ].find((x) => isFloat((x || 0)));
-              return lied;
-          };
-          await queueEvent(timer);
-          if (getTextMetricsFloatLie(context)) {
-              textMetricsLie = true;
-              lied = true;
-              documentLie('CanvasRenderingContext2D.measureText', 'metric noise detected');
-          }
-          logTestResult({ time: timer.stop(), test: 'canvas 2d', passed: true });
-          return {
-              dataURI,
-              paintURI,
-              paintCpuURI,
-              textURI,
-              emojiURI,
-              mods,
-              textMetricsSystemSum,
-              liedTextMetrics: textMetricsLie,
-              emojiSet: [...emojiSet],
-              lied,
-          };
-      }
-      catch (error) {
-          logTestResult({ test: 'canvas 2d', passed: false });
-          captureError(error);
-          return;
-      }
-  }
-
-  function getCSS() {
-      const computeStyle = (type, { require: [captureError] }) => {
-          try {
-              // get CSSStyleDeclaration
-              const cssStyleDeclaration = (type == 'getComputedStyle' ? getComputedStyle(document.body) :
-                  type == 'HTMLElement.style' ? document.body.style :
-                      // @ts-ignore
-                      type == 'CSSRuleList.style' ? document.styleSheets[0].cssRules[0].style :
-                          undefined);
-              if (!cssStyleDeclaration) {
-                  throw new TypeError('invalid argument string');
-              }
-              // get properties
-              const proto = Object.getPrototypeOf(cssStyleDeclaration);
-              const prototypeProperties = Object.getOwnPropertyNames(proto);
-              const ownEnumerablePropertyNames = [];
-              const cssVar = /^--.*$/;
-              Object.keys(cssStyleDeclaration).forEach((key) => {
-                  const numericKey = !isNaN(+key);
-                  const value = cssStyleDeclaration[key];
-                  const customPropKey = cssVar.test(key);
-                  const customPropValue = cssVar.test(value);
-                  if (numericKey && !customPropValue) {
-                      return ownEnumerablePropertyNames.push(value);
-                  }
-                  else if (!numericKey && !customPropKey) {
-                      return ownEnumerablePropertyNames.push(key);
-                  }
-                  return;
-              });
-              // get properties in prototype chain (required only in chrome)
-              const propertiesInPrototypeChain = {};
-              const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
-              const uncapitalize = (str) => str.charAt(0).toLowerCase() + str.slice(1);
-              const removeFirstChar = (str) => str.slice(1);
-              const caps = /[A-Z]/g;
-              ownEnumerablePropertyNames.forEach((key) => {
-                  if (propertiesInPrototypeChain[key]) {
-                      return;
-                  }
-                  // determine attribute type
-                  const isNamedAttribute = key.indexOf('-') > -1;
-                  const isAliasAttribute = caps.test(key);
-                  // reduce key for computation
-                  const firstChar = key.charAt(0);
-                  const isPrefixedName = isNamedAttribute && firstChar == '-';
-                  const isCapitalizedAlias = isAliasAttribute && firstChar == firstChar.toUpperCase();
-                  key = (isPrefixedName ? removeFirstChar(key) :
-                      isCapitalizedAlias ? uncapitalize(key) :
-                          key);
-                  // find counterpart in CSSStyleDeclaration object or its prototype chain
-                  if (isNamedAttribute) {
-                      const aliasAttribute = key.split('-').map((word, index) => index == 0 ? word : capitalize(word)).join('');
-                      if (aliasAttribute in cssStyleDeclaration) {
-                          propertiesInPrototypeChain[aliasAttribute] = true;
-                      }
-                      else if (capitalize(aliasAttribute) in cssStyleDeclaration) {
-                          propertiesInPrototypeChain[capitalize(aliasAttribute)] = true;
-                      }
-                  }
-                  else if (isAliasAttribute) {
-                      const namedAttribute = key.replace(caps, (char) => '-' + char.toLowerCase());
-                      if (namedAttribute in cssStyleDeclaration) {
-                          propertiesInPrototypeChain[namedAttribute] = true;
-                      }
-                      else if (`-${namedAttribute}` in cssStyleDeclaration) {
-                          propertiesInPrototypeChain[`-${namedAttribute}`] = true;
-                      }
-                  }
-                  return;
-              });
-              // compile keys
-              const keys = [
-                  ...new Set([
-                      ...prototypeProperties,
-                      ...ownEnumerablePropertyNames,
-                      ...Object.keys(propertiesInPrototypeChain),
-                  ]),
-              ];
-              // @ts-ignore
-              const interfaceName = ('' + proto).match(/\[object (.+)\]/)[1];
-              return { keys, interfaceName };
-          }
-          catch (error) {
-              captureError(error);
-              return;
-          }
-      };
-      const getSystemStyles = (el) => {
-          try {
-              const colors = [
-                  'ActiveBorder',
-                  'ActiveCaption',
-                  'ActiveText',
-                  'AppWorkspace',
-                  'Background',
-                  'ButtonBorder',
-                  'ButtonFace',
-                  'ButtonHighlight',
-                  'ButtonShadow',
-                  'ButtonText',
-                  'Canvas',
-                  'CanvasText',
-                  'CaptionText',
-                  'Field',
-                  'FieldText',
-                  'GrayText',
-                  'Highlight',
-                  'HighlightText',
-                  'InactiveBorder',
-                  'InactiveCaption',
-                  'InactiveCaptionText',
-                  'InfoBackground',
-                  'InfoText',
-                  'LinkText',
-                  'Mark',
-                  'MarkText',
-                  'Menu',
-                  'MenuText',
-                  'Scrollbar',
-                  'ThreeDDarkShadow',
-                  'ThreeDFace',
-                  'ThreeDHighlight',
-                  'ThreeDLightShadow',
-                  'ThreeDShadow',
-                  'VisitedText',
-                  'Window',
-                  'WindowFrame',
-                  'WindowText',
-              ];
-              const fonts = [
-                  'caption',
-                  'icon',
-                  'menu',
-                  'message-box',
-                  'small-caption',
-                  'status-bar',
-              ];
-              const getStyles = (el) => ({
-                  colors: colors.map((color) => {
-                      el.setAttribute('style', `background-color: ${color} !important`);
-                      return {
-                          [color]: getComputedStyle(el).backgroundColor,
-                      };
-                  }),
-                  fonts: fonts.map((font) => {
-                      el.setAttribute('style', `font: ${font} !important`);
-                      const computedStyle = getComputedStyle(el);
-                      return {
-                          [font]: `${computedStyle.fontSize} ${computedStyle.fontFamily}`,
-                      };
-                  }),
-              });
-              if (!el) {
-                  el = document.createElement('div');
-                  document.body.append(el);
-                  const systemStyles = getStyles(el);
-                  el.parentNode.removeChild(el);
-                  return systemStyles;
-              }
-              return getStyles(el);
-          }
-          catch (error) {
-              captureError(error);
-              return;
-          }
-      };
-      try {
-          const timer = createTimer();
-          timer.start();
-          const computedStyle = computeStyle('getComputedStyle', { require: [captureError] });
-          const system = getSystemStyles(PARENT_PHANTOM);
-          logTestResult({ time: timer.stop(), test: 'computed style', passed: true });
-          return {
-              computedStyle,
-              system,
-          };
-      }
-      catch (error) {
-          logTestResult({ test: 'computed style', passed: false });
-          captureError(error);
-          return;
-      }
-  }
-
-  function getCSSMedia() {
-      const gcd = (a, b) => b == 0 ? a : gcd(b, a % b);
-      const getAspectRatio = (width, height) => {
-          const r = gcd(width, height);
-          const aspectRatio = `${width / r}/${height / r}`;
-          return aspectRatio;
-      };
-      const query = ({ body, type, rangeStart, rangeLen }) => {
-          const html = [...Array(rangeLen)].map((slot, i) => {
-              i += rangeStart;
-              return `@media(device-${type}:${i}px){body{--device-${type}:${i};}}`;
-          }).join('');
-          body.innerHTML = `<style>${html}</style>`;
-          const style = getComputedStyle(body);
-          return style.getPropertyValue(`--device-${type}`).trim();
-      };
-      const getScreenMedia = ({ body, width, height }) => {
-          let widthMatch = query({ body, type: 'width', rangeStart: width, rangeLen: 1 });
-          let heightMatch = query({ body, type: 'height', rangeStart: height, rangeLen: 1 });
-          if (widthMatch && heightMatch) {
-              return { width, height };
-          }
-          const rangeLen = 1000;
-          [...Array(10)].find((slot, i) => {
-              if (!widthMatch) {
-                  widthMatch = query({ body, type: 'width', rangeStart: i * rangeLen, rangeLen });
-              }
-              if (!heightMatch) {
-                  heightMatch = query({ body, type: 'height', rangeStart: i * rangeLen, rangeLen });
-              }
-              return widthMatch && heightMatch;
-          });
-          return { width: +widthMatch, height: +heightMatch };
-      };
-      try {
-          const timer = createTimer();
-          timer.start();
-          const win = PHANTOM_DARKNESS.window;
-          const { body } = win.document;
-          const { width, availWidth, height, availHeight } = win.screen;
-          const noTaskbar = !(width - availWidth || height - availHeight);
-          if (screen.width !== width || (width > 800 && noTaskbar)) {
-              LowerEntropy.IFRAME_SCREEN = true;
-          }
-          const deviceAspectRatio = getAspectRatio(width, height);
-          const matchMediaCSS = {
-              ['prefers-reduced-motion']: (win.matchMedia('(prefers-reduced-motion: no-preference)').matches ? 'no-preference' :
-                  win.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'reduce' : undefined),
-              ['prefers-color-scheme']: (win.matchMedia('(prefers-color-scheme: light)').matches ? 'light' :
-                  win.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : undefined),
-              monochrome: (win.matchMedia('(monochrome)').matches ? 'monochrome' :
-                  win.matchMedia('(monochrome: 0)').matches ? 'non-monochrome' : undefined),
-              ['inverted-colors']: (win.matchMedia('(inverted-colors: inverted)').matches ? 'inverted' :
-                  win.matchMedia('(inverted-colors: none)').matches ? 'none' : undefined),
-              ['forced-colors']: (win.matchMedia('(forced-colors: none)').matches ? 'none' :
-                  win.matchMedia('(forced-colors: active)').matches ? 'active' : undefined),
-              ['any-hover']: (win.matchMedia('(any-hover: hover)').matches ? 'hover' :
-                  win.matchMedia('(any-hover: none)').matches ? 'none' : undefined),
-              hover: (win.matchMedia('(hover: hover)').matches ? 'hover' :
-                  win.matchMedia('(hover: none)').matches ? 'none' : undefined),
-              ['any-pointer']: (win.matchMedia('(any-pointer: fine)').matches ? 'fine' :
-                  win.matchMedia('(any-pointer: coarse)').matches ? 'coarse' :
-                      win.matchMedia('(any-pointer: none)').matches ? 'none' : undefined),
-              pointer: (win.matchMedia('(pointer: fine)').matches ? 'fine' :
-                  win.matchMedia('(pointer: coarse)').matches ? 'coarse' :
-                      win.matchMedia('(pointer: none)').matches ? 'none' : undefined),
-              ['device-aspect-ratio']: (win.matchMedia(`(device-aspect-ratio: ${deviceAspectRatio})`).matches ? deviceAspectRatio : undefined),
-              ['device-screen']: (win.matchMedia(`(device-width: ${width}px) and (device-height: ${height}px)`).matches ? `${width} x ${height}` : undefined),
-              ['display-mode']: (win.matchMedia('(display-mode: fullscreen)').matches ? 'fullscreen' :
-                  win.matchMedia('(display-mode: standalone)').matches ? 'standalone' :
-                      win.matchMedia('(display-mode: minimal-ui)').matches ? 'minimal-ui' :
-                          win.matchMedia('(display-mode: browser)').matches ? 'browser' : undefined),
-              ['color-gamut']: (win.matchMedia('(color-gamut: srgb)').matches ? 'srgb' :
-                  win.matchMedia('(color-gamut: p3)').matches ? 'p3' :
-                      win.matchMedia('(color-gamut: rec2020)').matches ? 'rec2020' : undefined),
-              orientation: (win.matchMedia('(orientation: landscape)').matches ? 'landscape' :
-                  win.matchMedia('(orientation: portrait)').matches ? 'portrait' : undefined),
-          };
-          body.innerHTML = `
-		<style>
-		@media (prefers-reduced-motion: no-preference) {body {--prefers-reduced-motion: no-preference}}
-		@media (prefers-reduced-motion: reduce) {body {--prefers-reduced-motion: reduce}}
-		@media (prefers-color-scheme: light) {body {--prefers-color-scheme: light}}
-		@media (prefers-color-scheme: dark) {body {--prefers-color-scheme: dark}}
-		@media (monochrome) {body {--monochrome: monochrome}}
-		@media (monochrome: 0) {body {--monochrome: non-monochrome}}
-		@media (inverted-colors: inverted) {body {--inverted-colors: inverted}}
-		@media (inverted-colors: none) {body {--inverted-colors: none}}
-		@media (forced-colors: none) {body {--forced-colors: none}}
-		@media (forced-colors: active) {body {--forced-colors: active}}
-		@media (any-hover: hover) {body {--any-hover: hover}}
-		@media (any-hover: none) {body {--any-hover: none}}
-		@media (hover: hover) {body {--hover: hover}}
-		@media (hover: none) {body {--hover: none}}
-		@media (any-pointer: fine) {body {--any-pointer: fine}}
-		@media (any-pointer: coarse) {body {--any-pointer: coarse}}
-		@media (any-pointer: none) {body {--any-pointer: none}}
-		@media (pointer: fine) {body {--pointer: fine}}
-		@media (pointer: coarse) {body {--pointer: coarse}}
-		@media (pointer: none) {body {--pointer: none}}
-		@media (device-aspect-ratio: ${deviceAspectRatio}) {body {--device-aspect-ratio: ${deviceAspectRatio}}}
-		@media (device-width: ${width}px) and (device-height: ${height}px) {body {--device-screen: ${width} x ${height}}}
-		@media (display-mode: fullscreen) {body {--display-mode: fullscreen}}
-		@media (display-mode: standalone) {body {--display-mode: standalone}}
-		@media (display-mode: minimal-ui) {body {--display-mode: minimal-ui}}
-		@media (display-mode: browser) {body {--display-mode: browser}}
-		@media (color-gamut: srgb) {body {--color-gamut: srgb}}
-		@media (color-gamut: p3) {body {--color-gamut: p3}}
-		@media (color-gamut: rec2020) {body {--color-gamut: rec2020}}
-		@media (orientation: landscape) {body {--orientation: landscape}}
-		@media (orientation: portrait) {body {--orientation: portrait}}
-		</style>
-		`;
-          const style = getComputedStyle(body);
-          const mediaCSS = {
-              ['prefers-reduced-motion']: style.getPropertyValue('--prefers-reduced-motion').trim() || undefined,
-              ['prefers-color-scheme']: style.getPropertyValue('--prefers-color-scheme').trim() || undefined,
-              monochrome: style.getPropertyValue('--monochrome').trim() || undefined,
-              ['inverted-colors']: style.getPropertyValue('--inverted-colors').trim() || undefined,
-              ['forced-colors']: style.getPropertyValue('--forced-colors').trim() || undefined,
-              ['any-hover']: style.getPropertyValue('--any-hover').trim() || undefined,
-              hover: style.getPropertyValue('--hover').trim() || undefined,
-              ['any-pointer']: style.getPropertyValue('--any-pointer').trim() || undefined,
-              pointer: style.getPropertyValue('--pointer').trim() || undefined,
-              ['device-aspect-ratio']: style.getPropertyValue('--device-aspect-ratio').trim() || undefined,
-              ['device-screen']: style.getPropertyValue('--device-screen').trim() || undefined,
-              ['display-mode']: style.getPropertyValue('--display-mode').trim() || undefined,
-              ['color-gamut']: style.getPropertyValue('--color-gamut').trim() || undefined,
-              orientation: style.getPropertyValue('--orientation').trim() || undefined,
-          };
-          // get screen query
-          const screenQuery = getScreenMedia({ body, width, height });
-          logTestResult({ time: timer.stop(), test: 'css media', passed: true });
-          return { mediaCSS, matchMediaCSS, screenQuery };
-      }
-      catch (error) {
-          logTestResult({ test: 'css media', passed: false });
-          captureError(error);
-          return;
-      }
-  }
-
-  function getHTMLElementVersion() {
-      try {
-          const timer = createTimer();
-          timer.start();
-          const keys = [];
-          // eslint-disable-next-line guard-for-in
-          for (const key in document.documentElement) {
-              keys.push(key);
-          }
-          logTestResult({ time: timer.stop(), test: 'html element', passed: true });
-          return { keys };
-      }
-      catch (error) {
-          logTestResult({ test: 'html element', passed: false });
-          captureError(error);
-          return;
-      }
-  }
 
   // inspired by
   // https://privacycheck.sec.lrz.de/active/fp_gcr/fp_getclientrects.html
@@ -3951,6 +4577,78 @@
           return;
       }
   }
+  /*
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export function clientRectsHTML(fp: any) {
+      if (!fp.clientRects) {
+          return `
+          <div class="col-six undefined">
+              <strong>DOMRect</strong>
+              <div>elems A: ${HTMLNote.BLOCKED}</div>
+              <div>elems B: ${HTMLNote.BLOCKED}</div>
+              <div>range A: ${HTMLNote.BLOCKED}</div>
+              <div>range B: ${HTMLNote.BLOCKED}</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          clientRects: {
+              $hash,
+              elementClientRects,
+              elementBoundingClientRect,
+              rangeClientRects,
+              rangeBoundingClientRect,
+              emojiSet,
+              domrectSystemSum,
+              lied,
+          },
+      } = fp
+
+      const computeDiffs = (rects: Record<string, number>[]) => {
+          if (!rects || !rects.length) {
+              return
+          }
+          const expectedSum = rects.reduce((acc, rect) => {
+              const { right, left, width, bottom, top, height } = rect
+              const expected = {
+                  width: right - left,
+                  height: bottom - top,
+                  right: left + width,
+                  left: right - width,
+                  bottom: top + height,
+                  top: bottom - height,
+                  x: right - width,
+                  y: bottom - height,
+              }
+              return acc += getRectSum(expected)
+          }, 0)
+          const actualSum = rects.reduce((acc, rect) => acc += getRectSum(rect), 0)
+          return getDiffs({
+              stringA: actualSum,
+              stringB: expectedSum,
+              charDiff: true,
+              decorate: (diff) => `<span class="bold-fail">${diff}</span>`,
+          })
+      }
+
+      const helpTitle = `Element.getClientRects()\nhash: ${hashMini(emojiSet)}\n${emojiSet.map((x: string, i: number) => i && (i % 6 == 0) ? `${x}\n` : x).join('')}`
+
+      return `
+      <div class="relative col-six${lied ? ' rejected' : ''}">
+          <span class="aside-note">${performanceLogger.getLog().rects}</span>
+          <strong>DOMRect</strong><span class="${lied ? 'lies ' : ''}hash">${hashSlice($hash)}</span>
+          <div class="help" title="Element.getClientRects()">elems A: ${computeDiffs(elementClientRects)}</div>
+          <div class="help" title="Element.getBoundingClientRect()">elems B: ${computeDiffs(elementBoundingClientRect)}</div>
+          <div class="help" title="Range.getClientRects()">range A: ${computeDiffs(rangeClientRects)}</div>
+          <div class="help" title="Range.getBoundingClientRect()">range B: ${computeDiffs(rangeBoundingClientRect)}</div>
+          <div class="block-text help relative" title="${helpTitle}">
+              <span>${domrectSystemSum || HTMLNote.UNSUPPORTED}</span>
+              <span class="grey jumbo" style="font-family: ${CSS_FONT_FAMILY}">${formatEmojiSet(emojiSet)}</span>
+          </div>
+      </div>
+      `
+  }
+  */
 
   function getErrors(errFns) {
       const errors = [];
@@ -3991,6 +4689,41 @@
           return;
       }
   }
+  /*
+  export function consoleErrorsHTML(fp) {
+      if (!fp.consoleErrors) {
+          return `
+          <div class="col-six undefined">
+              <strong>Error</strong>
+              <div>results: ${HTMLNote.BLOCKED}</div>
+              <div>
+                  <div>${HTMLNote.BLOCKED}</div>
+              </div>
+          </div>`
+      }
+      const {
+          consoleErrors: {
+              $hash,
+              errors,
+          },
+      } = fp
+
+      const results = Object.keys(errors).map((key) => {
+          const value = errors[key]
+          return `${+key+1}: ${value}`
+      })
+      return `
+      <div class="relative col-six">
+          <span class="aside-note">${performanceLogger.getLog()['console errors']}</span>
+          <strong>Error</strong><span class="hash">${hashSlice($hash)}</span>
+          <div>results: ${modal('creep-console-errors', results.join('<br>'))}</div>
+          <div class="blurred" id="error-samples">
+              <div>0% of engine</div>
+          </div>
+      </div>
+      `
+  }
+  */
 
   /*
   Steps to update:
@@ -4350,6 +5083,213 @@
           return;
       }
   }
+  /*
+  export function featuresHTML(fp) {
+      if (!fp.features) {
+          return `
+          <div class="col-six undefined">
+              <div>Features: ${HTMLNote.UNKNOWN}</div>
+              <div>JS/DOM: ${HTMLNote.UNKNOWN}</div>
+          </div>
+          <div class="col-six undefined">
+              <div>CSS: ${HTMLNote.UNKNOWN}</div>
+              <div>Window: ${HTMLNote.UNKNOWN}</div>
+          </div>`
+      }
+
+      const {
+          versionRange,
+          version,
+          cssVersion,
+          jsVersion,
+          windowVersion,
+          cssFeatures,
+          windowFeatures,
+          jsFeatures,
+          jsFeaturesKeys,
+      } = fp.features || {}
+
+      const { keys: windowFeaturesKeys } = fp.windowFeatures || {}
+      const { keys: computedStyleKeys } = fp.css.computedStyle || {}
+      const { userAgentVersion } = fp.workerScope || {}
+      const {
+          css: engineMapCSS,
+          win: engineMapWindow,
+          js: engineMapJS,
+      } = getEngineMaps(BROWSER)
+
+
+      // logger
+      const shouldLogFeatures = (browser, version, userAgentVersion) => {
+          const shouldLog = userAgentVersion > version
+          return shouldLog
+      }
+      const log = ({ features, name, diff }) => {
+          console.groupCollapsed(`%c ${name} Features %c-${diff.removed.length} %c+${diff.added.length}`, 'color: #4cc1f9', 'color: Salmon', 'color: MediumAquaMarine')
+          Object.keys(diff).forEach((key) => {
+              console.log(`%c${key}:`, `color: ${key == 'added' ? 'MediumAquaMarine' : 'Salmon' }`)
+              return console.log(diff[key].join('\n'))
+          })
+          console.log(features.join(', '))
+          return console.groupEnd()
+      }
+      // modal
+      const report = { computedStyleKeys, windowFeaturesKeys, jsFeaturesKeys }
+      const getModal = ({id, engineMap, features, browser, report, userAgentVersion }) => {
+          // capture diffs from stable release
+          const stable = getStableFeatures()
+          const { windowKeys, cssKeys, jsKeys, version } = stable[browser] || {}
+          const logger = shouldLogFeatures(browser, version, userAgentVersion)
+          let diff: {
+                  removed: string[]
+                  added: string[]
+          } | null = null
+
+          if (id == 'css') {
+              const { computedStyleKeys } = report
+
+              if (cssKeys) {
+                  diff = getListDiff({
+                      oldList: cssKeys.split(', '),
+                      newList: computedStyleKeys,
+                      removeCamelCase: true,
+                  })
+              }
+
+              if (!logger) return
+
+              console.log(`computing ${browser} ${userAgentVersion} diffs from ${browser} ${version}...`)
+
+              Analysis.featuresCSS = diff
+              log({ features: computedStyleKeys, name: 'CSS', diff })
+          } else if (id == 'window') {
+              const { windowFeaturesKeys } = report
+
+              if (windowKeys) {
+                  diff = getListDiff({
+                      oldList: windowKeys.split(', '),
+                      newList: windowFeaturesKeys,
+                  })
+              }
+
+              if (!logger) return
+
+              Analysis.featuresWindow = diff
+              log({ features: windowFeaturesKeys, name: 'Window', diff })
+          } else if (id == 'js') {
+              const { jsFeaturesKeys } = report
+
+              if (jsKeys) {
+                  diff = getListDiff({
+                      oldList: jsKeys.split(', '),
+                      newList: jsFeaturesKeys,
+                  })
+              }
+
+              if (!logger) return
+
+              Analysis.featuresJS = diff
+              log({ features: jsFeaturesKeys, name: 'JS', diff })
+          }
+
+          const header = !version || !diff || (!diff.added.length && !diff.removed.length) ? '' : `
+              <strong>diffs from ${version}</strong>:
+              <div>
+              ${
+                  diff && diff.added.length ?
+                      diff.added.map((key) => `<div><span>${key}</span></div>`).join('') : ''
+              }
+              ${
+                  diff && diff.removed.length ?
+                      diff.removed.map((key) => `<div><span class="unsupport">${key}</span></div>`).join('') : ''
+              }
+              </div>
+
+          `
+
+          return modal(`creep-features-${id}`, header + versionSort(Object.keys(engineMap)).map((key) => {
+              return `
+                  <strong>${key}</strong>:<br>${
+                      engineMap[key].map((prop) => {
+                          return `<span class="${!features.has(prop) ? 'unsupport' : ''}">${prop}</span>`
+                      }).join('<br>')
+                  }
+              `
+          }).join('<br>'), hashMini([...features]))
+      }
+
+      Analysis.featuresVersion = +userAgentVersion || 0
+
+      const cssModal = getModal({
+          id: 'css',
+          engineMap: engineMapCSS,
+          features: new Set(cssFeatures),
+          browser: BROWSER,
+          report,
+          userAgentVersion,
+      })
+
+      const windowModal = getModal({
+          id: 'window',
+          engineMap: engineMapWindow,
+          features: new Set(windowFeatures),
+          browser: BROWSER,
+          report,
+          userAgentVersion,
+      })
+
+      const jsModal = getModal({
+          id: 'js',
+          engineMap: engineMapJS,
+          features: new Set(jsFeatures),
+          browser: BROWSER,
+          report,
+          userAgentVersion,
+      })
+
+      const getIcon = (name) => `<span class="icon ${name}"></span>`
+      const browserIcon = (
+          !BROWSER ? '' :
+              /chrome/i.test(BROWSER) ? getIcon('chrome') :
+                  /firefox/i.test(BROWSER) ? getIcon('firefox') :
+                      ''
+      )
+
+      return `
+      <style>
+          .unsupport {
+              background: #f1f1f1;
+              color: #aaa;
+          }
+          .features-removed {
+              background: red;
+              color: #fff;
+          }
+          .features-added {
+              background: green;
+              color: #fff;
+          }
+          @media (prefers-color-scheme: dark) {
+              .unsupport {
+                  color: var(--light-grey);
+                  background: none;
+              }
+          }
+      </style>
+      <span class="time">${performanceLogger.getLog().features}</span>
+      <div class="col-six">
+          <div>Features: ${
+              versionRange.length ? `${browserIcon}${version}+` : HTMLNote.UNKNOWN
+          }</div>
+          <div>JS/DOM: ${jsVersion ? `${jsModal} (v${jsVersion})` : HTMLNote.UNKNOWN}</div>
+      </div>
+      <div class="col-six">
+          <div>CSS: ${cssVersion ? `${cssModal} (v${cssVersion})` : HTMLNote.UNKNOWN}</div>
+          <div>Window: ${windowVersion ? `${windowModal} (v${windowVersion})` : HTMLNote.UNKNOWN}</div>
+      </div>
+      `
+  }
+  */
 
   function getPlatformEstimate() {
       if (!IS_BLINK)
@@ -4644,6 +5584,106 @@
           return;
       }
   }
+  /*
+  export function headlessFeaturesHTML(fp) {
+      if (!fp.headless) {
+          return `
+          <div class="col-six">
+              <strong>Headless</strong>
+              <div>chromium: ${HTMLNote.BLOCKED}</div>
+              <div>0% like headless: ${HTMLNote.BLOCKED}</div>
+              <div>0% headless: ${HTMLNote.BLOCKED}</div>
+              <div>0% stealth: ${HTMLNote.BLOCKED}</div>
+              <div>platform hints:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          headless: data,
+      } = fp
+      const {
+          $hash,
+          chromium,
+          likeHeadless,
+          likeHeadlessRating,
+          headless,
+          headlessRating,
+          stealth,
+          stealthRating,
+          systemFonts,
+          platformEstimate,
+      } = data || {}
+
+      const [scores, highestScore] = platformEstimate || []
+
+      const IconMap: Record<string, string> = {
+          [Platform.ANDROID]: `<span class="icon android"></span>`,
+          [Platform.CHROME_OS]: `<span class="icon cros"></span>`,
+          [Platform.WINDOWS]: `<span class="icon windows"></span>`,
+          [Platform.MAC]: `<span class="icon apple"></span>`,
+          [Platform.LINUX]: `<span class="icon linux"></span>`,
+      }
+
+      const scoreKeys = Object.keys(scores || {})
+      const platformTemplate = !scores ? '' : `
+          ${scoreKeys.map((key) => (scores[key]*100).toFixed(0)).join(':')}
+          <br>${scoreKeys.map((key) => {
+              const score = scores[key]
+              const style = `
+                  filter: opacity(${score == highestScore ? 100 : 15}%);
+              `
+              return `<span style="${style}">${IconMap[key]}</span>`
+          }).join('')}
+          `
+
+      return `
+      <div class="relative col-six">
+          <style>
+              .like-headless-rating {
+                  background: linear-gradient(90deg, var(${likeHeadlessRating < 100 ? '--grey-glass' : '--error'}) ${likeHeadlessRating}%, #fff0 ${likeHeadlessRating}%, #fff0 100%);
+              }
+              .headless-rating {
+                  background: linear-gradient(90deg, var(--error) ${headlessRating}%, #fff0 ${headlessRating}%, #fff0 100%);
+              }
+              .stealth-rating {
+                  background: linear-gradient(90deg, var(--error) ${stealthRating}%, #fff0 ${stealthRating}%, #fff0 100%);
+              }
+          </style>
+          <span class="aside-note">${performanceLogger.getLog().headless}</span>
+          <strong>Headless</strong><span class="hash">${hashSlice($hash)}</span>
+          <div>chromium: ${''+chromium}</div>
+          <div class="like-headless-rating">${''+likeHeadlessRating}% like headless: ${
+              modal(
+                  'creep-like-headless',
+                  '<strong>Like Headless</strong><br><br>'+
+                  Object.keys(likeHeadless).map((key) => `${key}: ${''+likeHeadless[key]}`).join('<br>'),
+                  hashMini(likeHeadless),
+              )
+          }</div>
+          <div class="headless-rating">${''+headlessRating}% headless: ${
+              modal(
+                  'creep-headless',
+                  '<strong>Headless</strong><br><br>'+
+                  Object.keys(headless).map((key) => `${key}: ${''+headless[key]}`).join('<br>'),
+                  hashMini(headless),
+              )
+          }</div>
+          <div class="stealth-rating">${''+stealthRating}% stealth: ${
+              modal(
+                  'creep-stealth',
+                  '<strong>Stealth</strong><br><br>'+
+                  Object.keys(stealth).map((key) => `${key}: ${''+stealth[key]}`).join('<br>'),
+                  hashMini(stealth),
+              )
+          }</div>
+          <div>platform hints:</div>
+          <div class="block-text">
+              ${systemFonts ? `<div>${systemFonts}</div>` : ''}
+              ${platformTemplate ? `<div>${platformTemplate}</div>` : ''}
+          </div>
+      </div>`
+  }
+  */
 
   async function getIntl() {
       const getLocale = (intl) => {
@@ -4735,6 +5775,52 @@
           return;
       }
   }
+  /*
+  export function intlHTML(fp) {
+      if (!fp.htmlElementVersion) {
+          return `
+          <div class="col-six undefined">
+              <strong>Intl</strong>
+              <div>locale: ${HTMLNote.Blocked}</div>
+              <div>date: ${HTMLNote.Blocked}</div>
+              <div>display: ${HTMLNote.Blocked}</div>
+              <div>list: ${HTMLNote.Blocked}</div>
+              <div>number: ${HTMLNote.Blocked}</div>
+              <div>plural: ${HTMLNote.Blocked}</div>
+              <div>relative: ${HTMLNote.Blocked}</div>
+          </div>`
+      }
+      const {
+          $hash,
+          dateTimeFormat,
+          displayNames,
+          listFormat,
+          numberFormat,
+          pluralRules,
+          relativeTimeFormat,
+          locale,
+          lied,
+      } = fp.intl || {}
+
+      return `
+      <div class="relative col-six${lied ? ' rejected' : ''}">
+          <span class="aside-note">${performanceLogger.getLog().intl}</span>
+          <strong>Intl</strong><span class="${lied ? 'lies ' : LowerEntropy.TIME_ZONE ? 'bold-fail ' : ''}hash">${hashSlice($hash)}</span>
+          <div class="block-text help"  title="Intl.Collator\nIntl.DateTimeFormat\nIntl.DisplayNames\nIntl.ListFormat\nIntl.NumberFormat\nIntl.PluralRules\nIntl.RelativeTimeFormat">
+              ${[
+                  locale,
+                  dateTimeFormat,
+                  displayNames,
+                  numberFormat,
+                  relativeTimeFormat,
+                  listFormat,
+                  pluralRules,
+              ].join('<br>')}
+          </div>
+      </div>
+      `
+  }
+  */
 
   function getMaths() {
       try {
@@ -4912,6 +5998,81 @@
           return;
       }
   }
+  /*
+  export function mathsHTML(fp) {
+      if (!fp.maths) {
+          return `
+          <div class="col-six undefined">
+              <strong>Math</strong>
+              <div>results: ${HTMLNote.Blocked}</div>
+              <div>
+                  <div>${HTMLNote.Blocked}</div>
+              </div>
+
+          </div>`
+      }
+      const {
+          maths: {
+              data,
+              $hash,
+              lied,
+          },
+      } = fp
+
+      const header = `
+      <style>
+          .math-chromium,
+          .math-firefox,
+          .math-tor-browser,
+          .math-safari,
+          .math-blank-false {
+              padding: 2px 8px;
+          }
+          .math-chromium {
+              background: #657fca26;
+          }
+          .math-firefox {
+              background: #657fca54;
+          }
+          .math-tor-browser {
+              background: #ca65b424;
+          }
+          .math-safari {
+              background: #ca65b459;
+          }
+      </style>
+      <div>
+      <br><span class="math-chromium">C - Chromium</span>
+      <br><span class="math-firefox">F - Firefox</span>
+      <br><span class="math-tor-browser">T - Tor Browser</span>
+      <br><span class="math-safari">S - Safari</span>
+      </div>`
+
+      const results = Object.keys(data).map((key) => {
+          const value = data[key]
+          const { chrome, firefox, torBrowser, safari } = value
+          return `
+          ${chrome ? '<span class="math-chromium">C</span>' : '<span class="math-blank-false">-</span>'}${firefox ? '<span class="math-firefox">F</span>' : '<span class="math-blank-false">-</span>'}${torBrowser ? '<span class="math-tor-browser">T</span>' : '<span class="math-blank-false">-</span>'}${safari ? '<span class="math-safari">S</span>' : '<span class="math-blank-false">-</span>'} ${key}`
+      })
+
+      return `
+      <div class="relative col-six${lied ? ' rejected' : ''}">
+          <span class="aside-note">${performanceLogger.getLog().math}</span>
+          <strong>Math</strong><span class="${lied ? 'lies ' : ''}hash">${hashSlice($hash)}</span>
+          <div>results: ${
+              !data ? HTMLNote.Blocked :
+              modal(
+                  'creep-maths',
+                  header+results.join('<br>'),
+              )
+          }</div>
+          <div class="blurred" id="math-samples">
+              <div>0% of engine</div>
+          </div>
+      </div>
+      `
+  }
+  */
 
   // inspired by
   // - https://privacycheck.sec.lrz.de/active/fp_cpt/fp_can_play_type.html
@@ -4971,6 +6132,85 @@
           return;
       }
   }
+  /*
+  export function mediaHTML(fp) {
+      if (!fp.media) {
+          return `
+              <div class="col-four undefined">
+                  <strong>Media</strong>
+                  <div>mimes (0): ${HTMLNote.BLOCKED}</div>
+              </div>
+          `
+      }
+      const {
+          media: {
+              mimeTypes,
+              $hash,
+          },
+      } = fp
+
+      const header = `
+          <style>
+              .audiop, .videop, .medias, .mediar, .blank-false {
+                  padding: 2px 8px;
+              }
+              .audiop {
+                  background: #657fca26;
+              }
+              .medias {
+                  background: #657fca54;
+              }
+              .videop {
+                  background: #ca65b424;
+              }
+              .mediar {
+                  background: #ca65b459;
+              }
+              .audiop.pb, .videop.pb, .guide.pr {
+                  color: #8f8ff1 !important;
+              }
+              .audiop.mb, .videop.mb, .guide.mb {
+                  color: #98cee4 !important;
+              }
+              .medias.tr, .mediar.tr, .guide.tr {
+                  color: #c778ba !important;
+              }
+          </style>
+          <div>
+          <br><span class="audiop">audioPlayType</span>
+          <br><span class="videop">videoPlayType</span>
+          <br><span class="medias">mediaSource</span>
+          <br><span class="mediar">mediaRecorder</span>
+          <br><span class="guide pr">P (Probably)</span>
+          <br><span class="guide mb">M (Maybe)</span>
+          <br><span class="guide tr">T (True)</span>
+          </div>
+      `
+      const invalidMimeTypes = !mimeTypes || !mimeTypes.length
+      const mimes = invalidMimeTypes ? undefined : mimeTypes.map((type) => {
+          const { mimeType, audioPlayType, videoPlayType, mediaSource, mediaRecorder } = type
+          return `
+              ${audioPlayType == 'probably' ? '<span class="audiop pb">P</span>' : audioPlayType == 'maybe' ? '<span class="audiop mb">M</span>': '<span class="blank-false">-</span>'}${videoPlayType == 'probably' ? '<span class="videop pb">P</span>' : videoPlayType == 'maybe' ? '<span class="videop mb">M</span>': '<span class="blank-false">-</span>'}${mediaSource ? '<span class="medias tr">T</span>' : '<span class="blank-false">-</span>'}${mediaRecorder ? '<span class="mediar tr">T</span>' : '<span class="blank-false">-</span>'}: ${mimeType}
+          `
+      })
+      const mimesListLen = getMimeTypeShortList().length
+
+      return `
+          <div class="relative col-four">
+              <span class="aside-note">${performanceLogger.getLog().media}</span>
+              <strong>Media</strong><span class="hash">${hashSlice($hash)}</span>
+              <div class="help" title="HTMLMediaElement.canPlayType()\nMediaRecorder.isTypeSupported()\nMediaSource.isTypeSupported()">mimes (${count(mimeTypes)}/${mimesListLen}): ${
+                  invalidMimeTypes ? HTMLNote.BLOCKED :
+                  modal(
+                      'creep-media-mimeTypes',
+                      header+mimes.join('<br>'),
+                      hashMini(mimeTypes),
+                  )
+              }</div>
+          </div>
+      `
+  }
+  */
 
   // special thanks to https://arh.antoinevastel.com for inspiration
   async function getNavigator(workerScope) {
@@ -5340,6 +6580,185 @@
           return;
       }
   }
+  /*
+  export function navigatorHTML(fp) {
+      if (!fp.navigator) {
+          return `
+          <div class="col-six undefined">
+              <strong>Navigator</strong>
+              <div>properties (0): ${HTMLNote.BLOCKED}</div>
+              <div>dnt: ${HTMLNote.BLOCKED}</div>
+              <div>gpc:${HTMLNote.BLOCKED}</div>
+              <div>lang: ${HTMLNote.BLOCKED}</div>
+              <div>mimeTypes (0): ${HTMLNote.BLOCKED}</div>
+              <div>permissions (0): ${HTMLNote.BLOCKED}</div>
+              <div>plugins (0): ${HTMLNote.BLOCKED}</div>
+              <div>vendor: ${HTMLNote.BLOCKED}</div>
+              <div>webgpu: ${HTMLNote.BLOCKED}</div>
+              <div>userAgentData:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>
+          <div class="col-six">
+              <div>device:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+              <div>ua parsed: ${HTMLNote.BLOCKED}</div>
+              <div>userAgent:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+              <div>appVersion:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          navigator: {
+              $hash,
+              appVersion,
+              deviceMemory,
+              doNotTrack,
+              globalPrivacyControl,
+              hardwareConcurrency,
+              language,
+              maxTouchPoints,
+              mimeTypes,
+              oscpu,
+              permissions,
+              platform,
+              plugins,
+              properties,
+              system,
+              device,
+              userAgent,
+              uaPostReduction,
+              userAgentData,
+              userAgentParsed,
+              vendor,
+              bluetoothAvailability,
+              webgpu,
+              lied,
+          },
+      } = fp
+      const id = 'creep-navigator'
+      const blocked = {
+          ['null']: !0,
+          ['undefined']: !0,
+          ['']: !0,
+      }
+      const permissionsKeys = Object.keys(permissions || {})
+      const permissionsGranted = (
+          permissions && permissions.granted ? permissions.granted.length : 0
+      )
+      return `
+      <span class="time">${performanceLogger.getLog().navigator}</span>
+      <div class="col-six${lied ? ' rejected' : ''}">
+          <strong>Navigator</strong><span class="${lied ? 'lies ' : ''}hash">${hashSlice($hash)}</span>
+          <div>properties (${count(properties)}): ${
+          modal(
+              `${id}-properties`,
+              properties.join(', '),
+              hashMini(properties),
+          )
+          }</div>
+          <div class="help" title="Navigator.doNotTrack">dnt: ${'' + doNotTrack}</div>
+          <div class="help" title="Navigator.globalPrivacyControl">gpc: ${
+          '' + globalPrivacyControl == 'undefined' ? HTMLNote.UNSUPPORTED : '' + globalPrivacyControl
+          }</div>
+          <div class="help" title="Navigator.language\nNavigator.languages">lang: ${
+              !blocked[language] ? language : HTMLNote.BLOCKED
+          }</div>
+          <div>mimeTypes (${count(mimeTypes)}): ${
+          !blocked['' + mimeTypes] ?
+              modal(
+                  `${id}-mimeTypes`,
+                  mimeTypes.join('<br>'),
+                  hashMini(mimeTypes),
+              ) :
+              HTMLNote.BLOCKED
+          }</div>
+          <div class="help" title="Permissions.query()">permissions (${''+permissionsGranted}): ${
+              !permissions || !permissionsKeys ? HTMLNote.UNSUPPORTED : modal(
+                  'creep-permissions',
+                  permissionsKeys.map((key) => `<div class="perm perm-${key}"><strong>${key}</strong>:<br>${permissions[key].join('<br>')}</div>`).join(''),
+                  hashMini(permissions),
+              )
+          }</div>
+          <div>plugins (${count(plugins)}): ${
+          !blocked['' + plugins] ?
+              modal(
+                  `${id}-plugins`,
+                  plugins.map((plugin) => plugin.name).join('<br>'),
+                  hashMini(plugins),
+              ) :
+              HTMLNote.BLOCKED
+          }</div>
+          <div>vendor: ${!blocked[vendor] ? vendor : HTMLNote.BLOCKED}</div>
+          <div>webgpu: ${!webgpu ? HTMLNote.UNSUPPORTED :
+              modal(
+                  `${id}-webgpu`,
+                  ((webgpu) => {
+                      const { limits, features } = webgpu
+                      return `
+                      <div>
+                          <strong>Features</strong><br>${features.join('<br>')}
+                      </div>
+                      <div>
+                          <br><strong>Limits</strong><br>${Object.keys(limits).map((x) => `${x}: ${limits[x]}`).join('<br>')}
+                      </div>
+                      `
+                  })(webgpu),
+                  hashMini(webgpu),
+              )
+          }</div>
+          <div>userAgentData:</div>
+          <div class="block-text help" title="Navigator.userAgentData\nNavigatorUAData.getHighEntropyValues()">
+              <div>
+              ${((userAgentData) => {
+                  const {
+                      architecture,
+                      bitness,
+                      brandsVersion,
+                      uaFullVersion,
+                      mobile,
+                      model,
+                      platformVersion,
+                      platform,
+                  } = userAgentData || {}
+
+                  // @ts-ignore
+                  const windowsRelease = computeWindowsRelease({ platform, platformVersion })
+
+                  return !userAgentData ? HTMLNote.UNSUPPORTED : `
+                      ${(brandsVersion || []).join(',')}${uaFullVersion ? ` (${uaFullVersion})` : ''}
+                      <br>${windowsRelease || `${platform} ${platformVersion}`} ${architecture ? `${architecture}${bitness ? `_${bitness}` : ''}` : ''}
+                      ${model ? `<br>${model}` : ''}
+                      ${mobile ? '<br>mobile' : ''}
+                  `
+              })(userAgentData)}
+              </div>
+          </div>
+      </div>
+      <div class="col-six${lied ? ' rejected' : ''}">
+          <div>device:</div>
+          <div class="block-text help" title="Navigator.deviceMemory\nNavigator.hardwareConcurrency\nNavigator.maxTouchPoints\nNavigator.oscpu\nNavigator.platform\nNavigator.userAgent\nBluetooth.getAvailability()">
+              ${oscpu ? oscpu : ''}
+              ${`${oscpu ? '<br>' : ''}${system}${platform ? ` (${platform})` : ''}`}
+              ${device ? `<br>${device}` : HTMLNote.BLOCKED}${
+                  hardwareConcurrency && deviceMemory ? `<br>cores: ${hardwareConcurrency}, ram: ${deviceMemory}` :
+                  hardwareConcurrency && !deviceMemory ? `<br>cores: ${hardwareConcurrency}` :
+                  !hardwareConcurrency && deviceMemory ? `<br>ram: ${deviceMemory}` : ''
+              }${typeof maxTouchPoints != 'undefined' ? `, touch: ${''+maxTouchPoints}` : ''}${bluetoothAvailability ? `, bluetooth` : ''}
+          </div>
+          <div>ua parsed: ${userAgentParsed || HTMLNote.BLOCKED}</div>
+          <div class="relative">userAgent:${!uaPostReduction ? '' : `<span class="confidence-note">ua reduction</span>`}</div>
+          <div class="block-text">
+              <div>${userAgent || HTMLNote.BLOCKED}</div>
+          </div>
+          <div>appVersion:</div>
+          <div class="block-text">
+              <div>${appVersion || HTMLNote.BLOCKED}</div>
+          </div>
+      </div>
+      `
+  }
+  */
 
   async function getResistance() {
       try {
@@ -5780,6 +7199,81 @@
           return;
       }
   }
+  /*
+  export function resistanceHTML(fp) {
+      if (!fp.resistance) {
+          return `
+          <div class="col-six undefined">
+              <strong>Resistance</strong>
+              <div>privacy: ${HTMLNote.BLOCKED}</div>
+              <div>security: ${HTMLNote.BLOCKED}</div>
+              <div>mode: ${HTMLNote.BLOCKED}</div>
+              <div>extension: ${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          resistance: data,
+      } = fp
+      const {
+          $hash,
+          privacy,
+          security,
+          mode,
+          extension,
+          extensionHashPattern,
+          engine,
+      } = data || {}
+
+      const securitySettings = !security || Object.keys(security).reduce((acc, curr) => {
+          if (security[curr]) {
+              acc[curr] = 'enabled'
+              return acc
+          }
+          acc[curr] = 'disabled'
+          return acc
+      }, {})
+
+      const browserIcon = (
+          /brave/i.test(privacy) ? '<span class="icon brave"></span>' :
+              /tor/i.test(privacy) ? '<span class="icon tor"></span>' :
+                  /firefox/i.test(privacy) ? '<span class="icon firefox"></span>' :
+                      ''
+      )
+
+      const extensionIcon = (
+          /blink/i.test(engine) ? '<span class="icon chrome-extension"></span>' :
+              /gecko/i.test(engine) ? '<span class="icon firefox-addon"></span>' :
+                  ''
+      )
+
+      return `
+      <div class="relative col-six">
+          <span class="aside-note">${performanceLogger.getLog().resistance}</span>
+          <strong>Resistance</strong><span class="hash">${hashSlice($hash)}</span>
+          <div>privacy: ${privacy ? `${browserIcon}${privacy}` : HTMLNote.UNKNOWN}</div>
+          <div>security: ${
+              !security ? HTMLNote.UNKNOWN :
+              modal(
+                  'creep-resistance',
+                  '<strong>Security</strong><br><br>'+
+                  Object.keys(securitySettings).map((key) => `${key}: ${''+securitySettings[key]}`).join('<br>'),
+                  hashMini(security),
+              )
+          }</div>
+          <div>mode: ${mode || HTMLNote.UNKNOWN }</div>
+          <div>extension: ${
+              !Object.keys(extensionHashPattern || {}).length ? HTMLNote.UNKNOWN :
+              modal(
+                  'creep-extension',
+                  '<strong>Pattern</strong><br><br>'+
+                  Object.keys(extensionHashPattern).map((key) => `${key}: ${''+extensionHashPattern[key]}`).join('<br>'),
+                  (extension ? `${extensionIcon}${extension}` : hashMini(extensionHashPattern)),
+              )
+          }</div>
+      </div>
+      `
+  }
+  */
 
   function hasTouch() {
       try {
@@ -5839,6 +7333,175 @@
           return;
       }
   }
+  // function screenHTML(fp) {
+  // 	if (!fp.screen) {
+  // 		return `
+  // 		<div class="col-six undefined">
+  // 			<strong>Screen</strong>
+  // 			<div>...screen: ${HTMLNote.BLOCKED}</div>
+  // 			<div>....avail: ${HTMLNote.BLOCKED}</div>
+  // 			<div>touch: ${HTMLNote.BLOCKED}</div>
+  // 			<div>depth: ${HTMLNote.BLOCKED}</div>
+  // 			<div>viewport: ${HTMLNote.BLOCKED}</div>
+  // 			<div class="screen-container"></div>
+  // 		</div>`
+  // 	}
+  // 	const {
+  // 		screen: data,
+  // 	} = fp
+  // 	const { $hash } = data || {}
+  // 	const perf = performanceLogger.getLog().screen
+  // 	const paintScreen = (event) => {
+  // 		const el = document.getElementById('creep-resize')
+  // 		if (!el) {
+  // 			return
+  // 		}
+  // 		removeEventListener('resize', paintScreen)
+  // 		return getScreen(false).then((data) => {
+  // 			requestAnimationFrame(
+  // 				() => patch(el, html`${resizeHTML(({ data, $hash, perf, paintScreen }))}`),
+  // 			)
+  // 		})
+  // 	}
+  // 	const resizeHTML = ({ data, $hash, perf, paintScreen }) => {
+  // 		const {
+  // 			width,
+  // 			height,
+  // 			availWidth,
+  // 			availHeight,
+  // 			colorDepth,
+  // 			pixelDepth,
+  // 			touch,
+  // 			lied,
+  // 		} = data
+  // 		addEventListener('resize', paintScreen)
+  // 		const s = (window.screen || {})
+  // 		const { orientation } = s
+  // 		const { type: orientationType } = orientation || {}
+  // 		const dpr = window.devicePixelRatio || undefined
+  // 		const { width: vVWidth, height: vVHeight } = (window.visualViewport || {})
+  // 		const mediaOrientation = !window.matchMedia ? undefined : (
+  // 			matchMedia('(orientation: landscape)').matches ? 'landscape' :
+  // 				matchMedia('(orientation: portrait)').matches ? 'portrait' : undefined
+  // 		)
+  // 		const displayMode = !window.matchMedia ? undefined : (
+  // 			matchMedia('(display-mode: fullscreen)').matches ? 'fullscreen' :
+  // 				matchMedia('(display-mode: standalone)').matches ? 'standalone' :
+  // 					matchMedia('(display-mode: minimal-ui)').matches ? 'minimal-ui' :
+  // 						matchMedia('(display-mode: browser)').matches ? 'browser' : undefined
+  // 		)
+  // 		const getDeviceDimensions = (width, height, diameter = 180) => {
+  // 			const aspectRatio = width / height
+  // 			const isPortrait = height > width
+  // 			const deviceWidth = isPortrait ? diameter * aspectRatio : diameter
+  // 			const deviceHeight = isPortrait ? diameter : diameter / aspectRatio
+  // 			return { deviceWidth, deviceHeight }
+  // 		}
+  // 		// const { deviceWidth, deviceHeight } = getDeviceDimensions(width, height)
+  // 		const { deviceWidth: deviceInnerWidth, deviceHeight: deviceInnerHeight } = getDeviceDimensions(innerWidth, innerHeight)
+  // 		const toFix = (n, nFix) => {
+  // 			const d = +(1+[...Array(nFix)].map((x) => 0).join(''))
+  // 			return Math.round(n*d)/d
+  // 		}
+  // 		const viewportTitle = `Window.outerWidth\nWindow.outerHeight\nWindow.innerWidth\nWindow.innerHeight\nVisualViewport.width\nVisualViewport.height\nWindow.matchMedia()\nScreenOrientation.type\nWindow.devicePixelRatio`
+  // 		return `
+  // 			<div id="creep-resize" class="relative col-six${lied ? ' rejected' : ''}">
+  // 				<span class="time">${perf}</span>
+  // 				<strong>Screen</strong><span class="${lied ? 'lies ' : LowerEntropy.SCREEN ? 'bold-fail ' : ''}hash">${hashSlice($hash)}</span>
+  // 				<div class="help" title="Screen.width\nScreen.height">...screen: ${width} x ${height}</div>
+  // 				<div class="help" title="Screen.availWidth\nScreen.availHeight">....avail: ${availWidth} x ${availHeight}</div>
+  // 				<div class="help" title="TouchEvent">touch: ${touch}</div>
+  // 				<div class="help" title="Screen.colorDepth\nScreen.pixelDepth">depth: ${colorDepth}|${pixelDepth}</div>
+  // 				<div class="help" title="${viewportTitle}">viewport:</div>
+  // 				<div class="screen-container relative help" title="${viewportTitle}">
+  // 					<style>
+  // 						.screen-frame { width:${deviceInnerWidth}px;height:${deviceInnerHeight}px; }
+  // 						.screen-outer-w,
+  // 						.screen-outer-h,
+  // 						.screen-inner-w,
+  // 						.screen-inner-h,
+  // 						.screen-visual-w,
+  // 						.screen-visual-h,
+  // 						.screen-display-mode,
+  // 						.screen-media-orientation,
+  // 						.screen-orientation-type,
+  // 						.screen-dpr {
+  // 							position: absolute;
+  // 							font-size: 12px !important;
+  // 							border-radius: 3px;
+  // 							padding: 0 3px;
+  // 							margin: 3px 0;
+  // 							z-index: 1;
+  // 						}
+  // 						.screen-outer-w,
+  // 						.screen-inner-w,
+  // 						.screen-visual-w,
+  // 						.screen-display-mode,
+  // 						.screen-media-orientation,
+  // 						.screen-orientation-type,
+  // 						.screen-dpr, {
+  // 							text-align: center;
+  // 						}
+  // 						.screen-outer-h,
+  // 						.screen-inner-h,
+  // 						.screen-visual-h,
+  // 						.screen-display-mode,
+  // 						.screen-media-orientation,
+  // 						.screen-orientation-type,
+  // 						.screen-dpr {
+  // 							line-height: 216px; /* this is derived from the container height*/
+  // 						}
+  // 						.screen-outer-h,
+  // 						.screen-inner-h,
+  // 						.screen-visual-h {
+  // 							left: 0;
+  // 						}
+  // 						.screen-outer-w,
+  // 						.screen-outer-h {
+  // 							top: -29px;
+  // 						}
+  // 						.screen-inner-w,
+  // 						.screen-inner-h {
+  // 							top: -17px;
+  // 						}
+  // 						.screen-visual-w,
+  // 						.screen-visual-h {
+  // 							top: -5px;
+  // 						}
+  // 						.screen-display-mode {
+  // 							top: -31px;
+  // 						}
+  // 						.screen-media-orientation {
+  // 							top: -19px;
+  // 						}
+  // 						.screen-orientation-type {
+  // 							top: -7px;
+  // 						}
+  // 						.screen-dpr {
+  // 							top: 5px;
+  // 						}
+  // 					</style>
+  // 					<span class="screen-outer-w">${outerWidth}</span>
+  // 					<span class="screen-inner-w">${innerWidth}</span>
+  // 					<span class="screen-visual-w">${toFix(vVWidth, 6)}</span>
+  // 					<span class="screen-outer-h">${outerHeight}</span>
+  // 					<span class="screen-inner-h">${innerHeight}</span>
+  // 					<span class="screen-visual-h">${toFix(vVHeight, 6)}</span>
+  // 					<span class="screen-display-mode">${displayMode}</span>
+  // 					<span class="screen-media-orientation">${mediaOrientation}</span>
+  // 					<span class="screen-orientation-type">${orientationType}</span>
+  // 					<span class="screen-dpr">${dpr}</span>
+  // 					<div class="screen-frame relative">
+  // 						<div class="screen-glass"></div>
+  // 					</div>
+  // 				</div>
+  // 			</div>
+  // 			`
+  // 	}
+  // 	return `
+  // 	${resizeHTML({ data, $hash, perf, paintScreen })}
+  // 	`
+  // }
 
   async function getVoices() {
       // Don't run voice immediately. This is unstable
@@ -5921,6 +7584,86 @@
           }
       });
   }
+  /*
+  export function voicesHTML(fp) {
+      if (!fp.voices) {
+          return `
+          <div class="col-four undefined">
+              <strong>Speech</strong>
+              <div>local (0): ${HTMLNote.BLOCKED}</div>
+              <div>remote (0): ${HTMLNote.BLOCKED}</div>
+              <div>lang (0): ${HTMLNote.BLOCKED}</div>
+              <div>default:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          voices: {
+              $hash,
+              local,
+              remote,
+              languages,
+              defaultVoiceName,
+              defaultVoiceLang,
+              lied,
+          },
+      } = fp
+
+      const icon = {
+          'Linux': '<span class="icon linux"></span>',
+          'Apple': '<span class="icon apple"></span>',
+          'Windows': '<span class="icon windows"></span>',
+          'Android': '<span class="icon android"></span>',
+          'CrOS': '<span class="icon cros"></span>',
+      }
+      const system: Record<string, string> = {
+          'Chrome OS': icon.CrOS,
+          'Maged': icon.Apple,
+          'Microsoft': icon.Windows,
+          'English United States': icon.Android,
+          'English (United States)': icon.Android,
+      }
+      const systemVoice = Object.keys(system).find((key) => local.find((voice: string) => voice.includes(key))) || ''
+
+      return `
+      <div class="relative col-four${lied ? ' rejected' : ''}">
+          <span class="aside-note">${performanceLogger.getLog().speech}</span>
+          <strong>Speech</strong><span class="${lied ? 'lies ' : ''}hash">${hashSlice($hash)}</span>
+          <div class="help" title="SpeechSynthesis.getVoices()\nSpeechSynthesisVoice.localService">local (${count(local)}): ${
+              !local || !local.length ? HTMLNote.UNSUPPORTED :
+              modal(
+                  'creep-voices-local',
+                  local.join('<br>'),
+                  `${system[systemVoice] || ''}${hashMini(local)}`,
+              )
+          }</div>
+          <div class="help" title="SpeechSynthesis.getVoices()">remote (${count(remote)}): ${
+              !remote || !remote.length ? HTMLNote.UNSUPPORTED :
+              modal(
+                  'creep-voices-remote',
+                  remote.join('<br>'),
+                  hashMini(remote),
+              )
+          }</div>
+          <div class="help" title="SpeechSynthesis.getVoices()\nSpeechSynthesisVoice.lang">lang (${count(languages)}): ${
+              !languages || !languages.length ? HTMLNote.BLOCKED :
+                  languages.length == 1 ? languages[0] : modal(
+                      'creep-voices-languages',
+                      languages.join('<br>'),
+                      hashMini(languages),
+                  )
+          }</div>
+          <div class="help" title="SpeechSynthesis.getVoices()\nSpeechSynthesisVoice.default">default:</div>
+          <div class="block-text">
+              ${
+                  !defaultVoiceName ? HTMLNote.UNSUPPORTED :
+                      `${defaultVoiceName}${defaultVoiceLang ? ` [${defaultVoiceLang}]`: ''}`
+              }
+          </div>
+      </div>
+      `
+  }
+  */
 
   async function getSVG() {
       try {
@@ -6037,6 +7780,49 @@
           return;
       }
   }
+  /*
+  export function svgHTML(fp) {
+      if (!fp.svg) {
+          return `
+          <div class="col-six undefined">
+              <strong>SVGRect</strong>
+              <div>bBox: ${HTMLNote.BLOCKED}</div>
+              <div>char: ${HTMLNote.BLOCKED}</div>
+              <div>subs: ${HTMLNote.BLOCKED}</div>
+              <div>text: ${HTMLNote.BLOCKED}</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          svg: {
+              $hash,
+              bBox,
+              subStringLength,
+              extentOfChar,
+              computedTextLength,
+              emojiSet,
+              svgrectSystemSum,
+              lied,
+          },
+      } = fp
+      const divisor = 10000
+      const helpTitle = `SVGTextContentElement.getComputedTextLength()\nhash: ${hashMini(emojiSet)}\n${emojiSet.map((x, i) => i && (i % 6 == 0) ? `${x}\n` : x).join('')}`
+      return `
+      <div class="relative col-six${lied ? ' rejected' : ''}">
+          <span class="aside-note">${performanceLogger.getLog().svg}</span>
+          <strong>SVGRect</strong><span class="${lied ? 'lies ' : ''}hash">${hashSlice($hash)}</span>
+          <div class="help" title="SVGGraphicsElement.getBBox()">bBox: ${bBox ? (bBox/divisor) : HTMLNote.BLOCKED}</div>
+          <div class="help" title="SVGTextContentElement.getExtentOfChar()">char: ${extentOfChar ? (extentOfChar/divisor) : HTMLNote.BLOCKED}</div>
+          <div class="help" title="SVGTextContentElement.getSubStringLength()">subs: ${subStringLength ? (subStringLength/divisor) : HTMLNote.BLOCKED}</div>
+          <div class="help" title="SVGTextContentElement.getComputedTextLength()">text: ${computedTextLength ? (computedTextLength/divisor) : HTMLNote.BLOCKED}</div>
+          <div class="block-text help relative" title="${helpTitle}">
+              <span>${svgrectSystemSum || HTMLNote.UNSUPPORTED}</span>
+              <span class="grey jumbo" style="font-family: ${CSS_FONT_FAMILY}">${formatEmojiSet(emojiSet)}</span>
+          </div>
+      </div>
+      `
+  }
+  */
 
   function getTimezone() {
       // inspired by https://arkenfox.github.io/TZP
@@ -6594,6 +8380,41 @@
           return;
       }
   }
+  /*
+  export function timezoneHTML(fp) {
+      if (!fp.timezone) {
+          return `
+          <div class="col-six undefined">
+              <strong>Timezone</strong>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+          </div>`
+      }
+      const {
+          timezone: {
+              $hash,
+              zone,
+              location,
+              locationMeasured,
+              locationEpoch,
+              offset,
+              offsetComputed,
+              lied,
+          },
+      } = fp
+      return `
+      <div class="relative col-six${lied ? ' rejected' : ''}">
+          <span class="aside-note">${performanceLogger.getLog().timezone}</span>
+          <strong>Timezone</strong><span class="${lied ? 'lies ' : LowerEntropy.TIME_ZONE ? 'bold-fail ' : ''}hash">${hashSlice($hash)}</span>
+          <div class="block-text help"  title="Date\nDate.getTimezoneOffset\nIntl.DateTimeFormat">
+              ${zone ? zone : ''}
+              <br>${location != locationMeasured ? locationMeasured : location}
+              <br>${locationEpoch}
+              <br>${offset != offsetComputed ? offsetComputed : offset}
+          </div>
+      </div>
+      `
+  }
+  */
 
   /* eslint-disable @typescript-eslint/ban-ts-comment */
   // @ts-nocheck
@@ -7097,6 +8918,91 @@
           return;
       }
   }
+  /*
+  export function webglHTML(fp) {
+      if (!fp.canvasWebgl) {
+          return `
+          <div class="col-six undefined">
+              <strong>WebGL</strong>
+              <div>images: ${HTMLNote.BLOCKED}</div>
+              <div>pixels: ${HTMLNote.BLOCKED}</div>
+              <div>params (0): ${HTMLNote.BLOCKED}</div>
+              <div>exts (0): ${HTMLNote.BLOCKED}</div>
+              <div>gpu:</div>
+              <div class="block-text">${HTMLNote.BLOCKED}</div>
+              <div class="gl-image"></div>
+          </div>`
+      }
+      const { canvasWebgl: data } = fp
+      const id = 'creep-canvas-webgl'
+
+      const {
+          $hash,
+          dataURI,
+          dataURI2,
+          pixels,
+          pixels2,
+          lied,
+          extensions,
+          parameters,
+          gpu,
+      } = data || {}
+
+      const {
+          parts,
+          warnings,
+          gibbers,
+          confidence,
+          grade: confidenceGrade,
+          compressedGPU,
+      } = gpu || {}
+
+      const paramKeys = parameters ? Object.keys(parameters).sort() : []
+
+      return `
+
+      <div class="relative col-six${lied ? ' rejected' : ''}">
+          <span class="time">${performanceLogger.getLog().webgl}</span>
+          <strong>WebGL</strong><span class="${lied ? 'lies ' : (LowerEntropy.CANVAS || LowerEntropy.WEBGL) ? 'bold-fail ' : ''}hash">${hashSlice($hash)}</span>
+          <div>images:${
+              !dataURI ? ' '+HTMLNote.BLOCKED : `<span class="sub-hash">${hashMini(dataURI)}</span>${!dataURI2 || dataURI == dataURI2 ? '' : `<span class="sub-hash">${hashMini(dataURI2)}</span>`}`
+          }</div>
+          <div>pixels:${
+              !pixels ? ' '+HTMLNote.BLOCKED: `<span class="sub-hash">${hashSlice(pixels)}</span>${!pixels2 || pixels == pixels2 ? '' : `<span class="sub-hash">${hashSlice(pixels2)}</span>`}`
+          }</div>
+          <div>params (${count(paramKeys)}): ${
+              !paramKeys.length ? HTMLNote.BLOCKED :
+              modal(
+                  `${id}-parameters`,
+                  paramKeys.map((key) => `${key}: ${parameters[key]}`).join('<br>'),
+                  hashMini(parameters),
+              )
+          }</div>
+          <div>exts (${count(extensions)}): ${
+              !extensions.length ? HTMLNote.BLOCKED :
+              modal(
+                  `${id}-extensions`,
+                  extensions.sort().join('<br>'),
+                  hashMini(extensions),
+              )
+          }</div>
+
+          <div class="relative">gpu:${
+              confidence ? `<span class="confidence-note">confidence: <span class="scale-up grade-${confidenceGrade}">${confidence}</span></span>` : ''
+          }</div>
+          <div class="block-text help" title="${
+              confidence ? `\nWebGLRenderingContext.getParameter()\ngpu compressed: ${compressedGPU}\nknown parts: ${parts || 'none'}\ngibberish: ${gibbers || 'none'}\nwarnings: ${warnings.join(', ') || 'none'}` : 'WebGLRenderingContext.getParameter()'
+          }">
+              <div>
+                  ${parameters.UNMASKED_VENDOR_WEBGL ? parameters.UNMASKED_VENDOR_WEBGL : ''}
+                  ${!parameters.UNMASKED_RENDERER_WEBGL ? HTMLNote.BLOCKED : `<br>${parameters.UNMASKED_RENDERER_WEBGL}`}
+              </div>
+          </div>
+          ${!dataURI ? '<div class="gl-image"></div>' : `<image class="gl-image" src="${dataURI}"/>`}
+      </div>
+      `
+  }
+  */
 
   function getWindowFeatures() {
       try {
@@ -7136,6 +9042,37 @@
           return;
       }
   }
+  /*
+  export function windowFeaturesHTML(fp) {
+      if (!fp.windowFeatures) {
+          return `
+          <div class="col-six undefined">
+              <strong>Window</strong>
+              <div>keys (0): ${HTMLNote.BLOCKED}</div>
+              <div>
+                  <div>${HTMLNote.BLOCKED}</div>
+              </div>
+          </div>`
+      }
+      const {
+          windowFeatures: {
+              $hash,
+              keys,
+          },
+      } = fp
+
+      return `
+      <div class="relative col-six">
+          <span class="aside-note">${performanceLogger.getLog().window}</span>
+          <strong>Window</strong><span class="hash">${hashSlice($hash)}</span>
+          <div>keys (${count(keys)}): ${keys && keys.length ? modal('creep-iframe-content-window-version', keys.join(', ')) : HTMLNote.BLOCKED}</div>
+          <div class="blurred" id="window-features-samples">
+              <div>0% of version</div>
+          </div>
+      </div>
+      `
+  }
+  */
 
   /* eslint-disable linebreak-style */
   const main = async function () {

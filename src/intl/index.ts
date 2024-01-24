@@ -103,7 +103,7 @@ export default async function getIntl() {
 		return
 	}
 }
-
+/*
 export function intlHTML(fp) {
 	if (!fp.htmlElementVersion) {
 		return `
@@ -148,3 +148,4 @@ export function intlHTML(fp) {
 	</div>
 	`
 }
+*/

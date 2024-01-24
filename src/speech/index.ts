@@ -98,7 +98,7 @@ export default async function getVoices() {
 		}
 	})
 }
-
+/*
 export function voicesHTML(fp) {
 	if (!fp.voices) {
 		return `
@@ -177,3 +177,4 @@ export function voicesHTML(fp) {
 	</div>
 	`
 }
+*/

@@ -544,7 +544,7 @@ export default async function getCanvas2d() {
 		return
 	}
 }
-
+/*
 export function canvasHTML(fp) {
 	if (!fp.canvas2d) {
 		return `
@@ -726,3 +726,4 @@ export function canvasHTML(fp) {
 	</div>
 	`
 }
+*/

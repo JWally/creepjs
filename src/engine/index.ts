@@ -39,7 +39,7 @@ export default function getConsoleErrors() {
 		return
 	}
 }
-
+/*
 export function consoleErrorsHTML(fp) {
 	if (!fp.consoleErrors) {
 		return `
@@ -73,3 +73,4 @@ export function consoleErrorsHTML(fp) {
 	</div>
 	`
 }
+*/

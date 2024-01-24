@@ -391,7 +391,7 @@ export default async function getFonts() {
 		return
 	}
 }
-
+/*
 export function fontsHTML(fp) {
 	if (!fp.fonts) {
 		return `
@@ -453,3 +453,4 @@ export function fontsHTML(fp) {
 	</div>
 	`
 }
+*/

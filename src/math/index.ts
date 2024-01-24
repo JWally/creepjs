@@ -209,7 +209,7 @@ export default function getMaths() {
 		return
 	}
 }
-
+/*
 export function mathsHTML(fp) {
 	if (!fp.maths) {
 		return `
@@ -283,3 +283,4 @@ export function mathsHTML(fp) {
 	</div>
 	`
 }
+*/

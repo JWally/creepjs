@@ -63,7 +63,7 @@ export default async function getMedia() {
 	}
 }
 
-
+/*
 export function mediaHTML(fp) {
 	if (!fp.media) {
 		return `
@@ -141,3 +141,4 @@ export function mediaHTML(fp) {
 		</div>
 	`
 }
+*/

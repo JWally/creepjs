@@ -247,10 +247,12 @@ const trashBin = createTrashBin()
 const { sendToTrash } = trashBin
 const getTrash = () => ({ trashBin: trashBin.getBin() })
 
+/*
 function trashHTML(fp, pointsHTML) {
 	const { trash: { trashBin, $hash } } = fp
 	const trashLen = trashBin.length
-	return `
+	return true;
+	const waste = `
 		<div class="${trashLen ? ' trash': ''}">trash (${!trashLen ? '0' : ''+trashLen }):${
 			!trashLen ? ' none' : modal(
 				'creep-trash',
@@ -259,5 +261,8 @@ function trashHTML(fp, pointsHTML) {
 			)
 		}${pointsHTML}</div>`
 }
-
+*/
+function trashHTML(fp, pointsHTML){
+	return true;
+}
 export { sendToTrash, proxyBehavior, gibberish, trustInteger, compressWebGLRenderer, getWebGLRendererParts, hardenWebGLRenderer, getWebGLRendererConfidence, trashBin, getTrash, trashHTML }

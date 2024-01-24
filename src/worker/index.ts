@@ -498,7 +498,7 @@ export default async function getBestWorkerScope() {
 		return
 	}
 }
-
+/*
 export function workerScopeHTML(fp) {
 	if (!fp.workerScope) {
 		return `
@@ -634,3 +634,4 @@ export function workerScopeHTML(fp) {
 	</div>
 	`
 }
+*/

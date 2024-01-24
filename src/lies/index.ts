@@ -907,6 +907,7 @@ interface LiesFingerprint {
 		$hash: string
 	}
 }
+/*
 function liesHTML(fp: LiesFingerprint, pointsHTML: string): string {
 	const { lies: { data, totalLies, $hash } } = fp
 	return `
@@ -927,5 +928,8 @@ function liesHTML(fp: LiesFingerprint, pointsHTML: string): string {
 		)
 	}${pointsHTML}</div>`
 }
-
+*/
+function liesHTML(fp: LiesFingerprint, pointsHTML: string): string {
+	return "LIES! LIES! LIES! ALL LIES!!!"
+}
 export { getRandomValues, documentLie, createLieDetector, PHANTOM_DARKNESS, PARENT_PHANTOM, lieProps, prototypeLies, lieRecords, getLies, getPluginLies, liesHTML, PROTO_BENCHMARK }

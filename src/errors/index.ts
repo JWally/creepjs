@@ -94,7 +94,7 @@ const timer = (logStart) => {
 }
 
 const getCapturedErrors = () => ({ data: errorsCaptured.getErrors() })
-
+/*
 const errorsHTML = (fp, pointsHTML) => {
 	const { capturedErrors: { data, $hash } } = fp
 	const len = data.length
@@ -109,5 +109,6 @@ const errorsHTML = (fp, pointsHTML) => {
 		)
 	}${pointsHTML}</div>`
 }
-
+*/
+const errorsHTML = (fp, pointsHTML) => {return true;}
 export { captureError, attempt, caniuse, timer, errorsCaptured, getCapturedErrors, errorsHTML }
