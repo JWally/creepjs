@@ -120,11 +120,11 @@ function hasValidStack(err: any, reg: RegExp, i: number = 1) {
 	return reg.test(err.stack.split('\n')[i])
 }
 
-let AT_FUNCTION = /at Function\.toString /
-let AT_OBJECT = /at Object\.toString/
-let FUNCTION_INSTANCE = /at (Function\.)?\[Symbol.hasInstance\]/ // useful if < Chrome 102
-let PROXY_INSTANCE = /at (Proxy\.)?\[Symbol.hasInstance\]/ // useful if < Chrome 102
-let STRICT_MODE = /strict mode/
+const AT_FUNCTION = /at Function\.toString /
+const AT_OBJECT = /at Object\.toString/
+const FUNCTION_INSTANCE = /at (Function\.)?\[Symbol.hasInstance\]/ // useful if < Chrome 102
+const PROXY_INSTANCE = /at (Proxy\.)?\[Symbol.hasInstance\]/ // useful if < Chrome 102
+const STRICT_MODE = /strict mode/
 
 // API Function Test
 interface LiesConfig {
@@ -542,6 +542,18 @@ function getPrototypeLies(scope: Window & typeof globalThis) {
 			'valueOf',
 		],
 	})
+	// @ts-expect-error if not supported
+	searchLies(() => GPU, {
+		target: [
+			'requestAdapter',
+		],
+	})
+	// @ts-expect-error if not supported
+	searchLies(() => GPUAdapter, {
+		target: [
+			'requestAdapterInfo',
+		],
+	})
 	searchLies(() => Intl.DateTimeFormat, {
 		target: [
 			'format',
@@ -677,9 +689,12 @@ function getPrototypeLies(scope: Window & typeof globalThis) {
 			'productSub',
 			'sendBeacon',
 			'serviceWorker',
+			'storage',
 			'userAgent',
 			'vendor',
 			'vendorSub',
+			'webdriver',
+			'gpu',
 		],
 	})
 	searchLies(() => Node, {
@@ -734,6 +749,11 @@ function getPrototypeLies(scope: Window & typeof globalThis) {
 	searchLies(() => String, {
 		target: [
 			'fromCodePoint',
+		],
+	})
+	searchLies(() => StorageManager, {
+		target: [
+			'estimate',
 		],
 	})
 	searchLies(() => SVGRect)
@@ -816,6 +836,8 @@ if (!IS_WORKER_SCOPE) {
 	const perf = performance.now() - start
 
 	PROTO_BENCHMARK = +perf.toFixed(2)
+	//const message = `${propsSearched.length} API properties analyzed in ${PROTO_BENCHMARK}ms (${lieList.length} corrupted)`
+	//setTimeout(() => {let x = 2}, 300)
 }
 
 const getPluginLies = (plugins: PluginArray, mimeTypes: MimeTypeArray) => {
@@ -929,6 +951,7 @@ function liesHTML(fp: LiesFingerprint, pointsHTML: string): string {
 	}${pointsHTML}</div>`
 }
 */
+
 function liesHTML(fp: LiesFingerprint, pointsHTML: string): string {
 	return "LIES! LIES! LIES! ALL LIES!!!"
 }

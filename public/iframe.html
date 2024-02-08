@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html>
-    <h1>CURRENT RUN CHECK</h1>
+    <h1 id="creep">CREEP:</h1>
+    <h1 id="fp">FP: </h1>
+    <h1 id="fuzzy">Fuzzy: </h1>
+    <div id="output"></div>
 </html>
 
 
@@ -8,10 +11,42 @@
 
     import { main } from  "./U235.mjs";
 
+    const flattenObject = (obj, parentKey = '', result = {}) => {
+    for (let key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            let newKey = parentKey ? `${parentKey}.${key}` : key;
+            if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+                flattenObject(obj[key], newKey, result);
+            } else {
+                result[newKey] = obj[key];
+            }
+        }
+    }
+    return result;
+};
+
     main().then((that) => {
-        let tmp = document.querySelector("h1").innerText;
-        document.querySelector("h1").innerText = `${tmp} : ${that.creepHash}`;
+        document.querySelector("#creep").innerText = `CREEP: ${that.creepHash}`;
+        document.querySelector("#fp").innerText = `FP: ${that.fpHash}`;
+        document.querySelector("#fuzzy").innerText = `WAG: ${that.fuzzyHash}`;
+        
         console.log(that);
+        let flat = flattenObject(that.creep);
+
+        Object.keys(flat).sort((a,b) => {return a > b ? -1 : 1}).forEach((key) => {
+            if(typeof flat[key] !== "object"){
+                if(1 === 1){
+                    let el = document.createElement("p");
+                    el.innerText = `${key}: ${flat[key]}`;
+                    document.querySelector("#output").appendChild(el);
+                }
+
+            } else if  (Array.isArray(flat[key])) {
+                //let el = document.createElement("p");
+                //el.innerText = `${key}: ${JSON.stringify(flat[key].sort())}`;
+                //document.querySelector("#output").appendChild(el);
+            }
+        })
     });
 
 

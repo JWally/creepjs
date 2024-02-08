@@ -23,9 +23,9 @@ import getVoices from './speech'
 import getSVG from './svg'
 import getTimezone from './timezone'
 import { getTrash} from './trash'
-import { hashify} from './utils/crypto'
-import { exile, getStackBytes } from './utils/exile'
-import { IS_BLINK, braveBrowser, getBraveMode, getBraveUnprotectedParameters, LowerEntropy, queueTask } from './utils/helpers'
+import { hashify, hashMini, getFuzzyHash} from './utils/crypto'
+import { exile, getStackBytes, getTTFB, measure } from './utils/exile'
+import { IS_BLINK, braveBrowser, getBraveMode, getBraveUnprotectedParameters, LowerEntropy, queueTask, Analysis } from './utils/helpers'
 import getCanvasWebgl from './webgl'
 import getWindowFeatures from './window'
 import getBestWorkerScope, { Scope, spawnWorker } from './worker'
@@ -40,8 +40,16 @@ const main = async function() {
 	}
 
 	await queueTask()
-	const stackBytes = getStackBytes()
-	await exile()
+	const stackBytes = getStackBytes();
+	//await exile()
+
+	const [, measuredTime, ttfb] = await Promise.all([
+		exile(),
+		measure(),
+		getTTFB(),
+	])
+	console.clear()
+	const measured = (outerWidth - innerWidth < 150) && (outerHeight - innerHeight < 150) ? measuredTime : 0
 
 	const isBrave = IS_BLINK ? await braveBrowser() : false
 	const braveMode = isBrave ? getBraveMode() : {}
@@ -696,9 +704,12 @@ const main = async function() {
 		lieProbability = undefined;
 	}
 
+	const fuzzyHash = await getFuzzyHash(fp);
+
 	return {
 		fpHash, 
 		creepHash, 
+		fuzzyHash,
 		fp, 
 		creep, 
 		lieProbability

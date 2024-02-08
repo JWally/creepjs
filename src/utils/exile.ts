@@ -37,3 +37,31 @@ export function getStackBytes(): string {
   const bytes = (sizeB * 8) / (sizeA - sizeB)
   return [sizeA, sizeB, bytes].join(':')
 }
+
+export async function measure(): Promise<number | undefined> {
+  const encoded = 'KGZ1bmN0aW9uKGYsSyl7dmFyIG89TyxkPWYoKTt3aGlsZSghIVtdKXt0cnl7dmFyIEM9LXBhcnNlSW50KG8oMHgxOTQpKS8weDEqKHBhcnNlSW50KG8oMHgxOTApKS8weDIpK3BhcnNlSW50KG8oMHgxOGUpKS8weDMqKHBhcnNlSW50KG8oMHgxOTEpKS8weDQpK3BhcnNlSW50KG8oMHgxOTgpKS8weDUqKC1wYXJzZUludChvKDB4MThiKSkvMHg2KStwYXJzZUludChvKDB4MTk2KSkvMHg3K3BhcnNlSW50KG8oMHgxOGYpKS8weDgrLXBhcnNlSW50KG8oMHgxOTIpKS8weDkrLXBhcnNlSW50KG8oMHgxOTcpKS8weGEqKHBhcnNlSW50KG8oMHgxOGQpKS8weGIpO2lmKEM9PT1LKWJyZWFrO2Vsc2UgZFsncHVzaCddKGRbJ3NoaWZ0J10oKSk7fWNhdGNoKEwpe2RbJ3B1c2gnXShkWydzaGlmdCddKCkpO319fSh6LDB4OWU2YmUpLCEoZnVuY3Rpb24oKXt2YXIgWT1PLGY9e30sSz1bXTtmb3IobGV0IEw9MHgwO0w8MHgxMzg4O0wrKylmW0xdPUw7Zm9yKGxldCBSPTB4MDtSPDB4MzI7Uis9MHgxKUtbWSgweDE4YyldKGYpO3ZhciBkPXBlcmZvcm1hbmNlW1koMHgxOTMpXSgpO2NvbnNvbGVbWSgweDE5NSkrWSgweDE4YSldKCcnKSxjb25zb2xlWyd0YWJsZSddKEspLGNvbnNvbGVbJ2dyb3VwRW5kJ10oKTt2YXIgQz1wZXJmb3JtYW5jZVtZKDB4MTkzKV0oKS1kO3Bvc3RNZXNzYWdlKEMpO30oKSkpO2Z1bmN0aW9uIE8oZixLKXt2YXIgZD16KCk7cmV0dXJuIE89ZnVuY3Rpb24oQyxMKXtDPUMtMHgxOGE7dmFyIGE9ZFtDXTtyZXR1cm4gYTt9LE8oZixLKTt9ZnVuY3Rpb24geigpe3ZhciBoPVsnMTZnRE55SEcnLCdncm91cENvbGxhJywnODQyMjkxOGpDU1pPcCcsJzE3MGFIamRteScsJzI2NVdGaElHSScsJ3BzZWQnLCc5NDE1OFFESnJRSScsJ3B1c2gnLCc3NjI3NzNIUWRzZm0nLCczS3pGQlNqJywnOTUxMzA0ME9XZ2F3cycsJzE3MDQycXpzT25DJywnNDA2MTEwNFhiUUl5aScsJzU1MDcwMTBNV2RSdXEnLCdub3cnXTt6PWZ1bmN0aW9uKCl7cmV0dXJuIGg7fTtyZXR1cm4geigpO30='
+  const blob = new Blob([atob(encoded)], { type: 'application/javascript' })
+  const url = URL.createObjectURL(blob)
+  const worker = new Worker(url)
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(), 3000)
+
+    worker.addEventListener('message', (event) => {
+      if (typeof event.data === 'number') {
+        resolve(event.data)
+      }
+    })
+  }).finally(() => {
+    URL.revokeObjectURL(url)
+    worker.terminate()
+  })
+}
+
+export function getTTFB(): number {
+  const entries = performance.getEntriesByType('navigation')
+      .map((x) => x.responseStart - x.requestStart)
+      .filter((x) => x !== 0)
+      .sort((a, b) => a - b)
+  const mid = Math.floor(entries.length / 2)
+  return entries.length % 2 === 1 ? entries[mid] : (entries[mid - 1] + entries[mid]) / 2
+}

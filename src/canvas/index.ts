@@ -335,13 +335,15 @@ export default async function getCanvas2d() {
 		}
 		const doc = win.document
 
+		const options = {
+			desynchronized: true,
+			willReadFrequently: true,
+		}
+
 		const canvas = doc.createElement('canvas')
 		const context = canvas.getContext('2d')
 		const canvasCPU = doc.createElement('canvas')
-		const contextCPU = canvasCPU.getContext('2d', {
-			desynchronized: true,
-			willReadFrequently: true,
-		})
+		const contextCPU = canvasCPU.getContext('2d', options)
 
 		if (!context) {
 			throw new Error('canvas context blocked')
@@ -450,12 +452,13 @@ export default async function getCanvas2d() {
 		context.fillStyle = '#fff'
 		context.fillRect(2, 2, 1, 1)
 		context.beginPath()
-    context.arc(0, 0, 2, 0, 1, true)
-    context.closePath()
-    context.fill()
+		context.arc(0, 0, 2, 0, 1, true)
+		context.closePath()
+		context.fill()
 		const imageDataLowEntropy = context.getImageData(0, 0, 2, 2).data.join('')
 		const KnownImageData: Record<string, string[]> = {
 			BLINK: [
+				'255255255255178178178255246246246255555555255',
 				'255255255255192192192255240240240255484848255',
 				'255255255255177177177255246246246255535353255',
 				'255255255255128128128255191191191255646464255',
@@ -465,6 +468,7 @@ export default async function getCanvas2d() {
 				'255255255255192192192255244244244255535353255',
 			],
 			GECKO: [
+				'255255255255191191191255207207207255646464255',
 				'255255255255192192192255240240240255484848255',
 				'255255255255191191191255239239239255646464255',
 				'255255255255191191191255223223223255606060255', // ?

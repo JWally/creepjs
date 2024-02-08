@@ -129,223 +129,156 @@ const getBotHash = (fp, imports) => {
 	return { botHash, badBot: Object.keys(botPatterns).find((key) => botPatterns[key]) }
 }
 
+async function sha1Hash(str) {
+    // Step 1: Encode the String
+    const encoder = new TextEncoder();
+    const data = encoder.encode(str);
+
+    // Step 2: Hash the Data
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    
+    // Convert the ArrayBuffer to a hex string
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
 const getFuzzyHash = async (fp) => {
-	// requires update log (below) when adding new keys to fp
+
 	const metricKeys = [
-		'canvas2d.dataURI',
-		'canvas2d.emojiSet',
-		'canvas2d.emojiURI',
-		'canvas2d.liedTextMetrics',
-		'canvas2d.mods',
-		'canvas2d.paintURI',
-		'canvas2d.paintCpuURI',
-		'canvas2d.textMetricsSystemSum',
-		'canvas2d.textURI',
-		'canvasWebgl.dataURI',
-		'canvasWebgl.dataURI2',
-		'canvasWebgl.extensions',
-		'canvasWebgl.gpu',
-		'canvasWebgl.parameterOrExtensionLie',
-		'canvasWebgl.parameters',
-		'canvasWebgl.pixels',
-		'canvasWebgl.pixels2',
-		'capturedErrors.data',
-		'clientRects.domrectSystemSum',
-		'clientRects.elementBoundingClientRect',
-		'clientRects.elementClientRects',
-		'clientRects.emojiSet',
-		'clientRects.rangeBoundingClientRect',
-		'clientRects.rangeClientRects',
-		'consoleErrors.errors',
-		'css.computedStyle',
-		'css.system',
-		'cssMedia.matchMediaCSS',
-		'cssMedia.mediaCSS',
-		'cssMedia.screenQuery',
-		'features.cssFeatures',
-		'features.cssVersion',
-		'features.jsFeatures',
-		'features.jsFeaturesKeys',
-		'features.jsVersion',
-		'features.version',
-		'features.versionRange',
-		'features.windowFeatures',
-		'features.windowVersion',
-		'fonts.apps',
-		'fonts.emojiSet',
-		'fonts.fontFaceLoadFonts',
-		'fonts.pixelSizeSystemSum',
-		'fonts.platformVersion',
-		'headless.chromium',
-		'headless.headless',
-		'headless.headlessRating',
-		'headless.likeHeadless',
-		'headless.likeHeadlessRating',
-		'headless.platformEstimate',
-		'headless.stealth',
-		'headless.stealthRating',
-		'headless.systemFonts',
-		'htmlElementVersion.keys',
-		'intl.dateTimeFormat',
-		'intl.displayNames',
-		'intl.listFormat',
-		'intl.locale',
-		'intl.numberFormat',
-		'intl.pluralRules',
-		'intl.relativeTimeFormat',
-		'lies.data',
-		'lies.totalLies',
-		'maths.data',
-		'media.mimeTypes',
-		'navigator.appVersion',
-		'navigator.bluetoothAvailability',
-		'navigator.device',
-		'navigator.deviceMemory',
-		'navigator.doNotTrack',
-		'navigator.globalPrivacyControl',
-		'navigator.hardwareConcurrency',
-		'navigator.language',
-		'navigator.maxTouchPoints',
-		'navigator.mimeTypes',
-		'navigator.oscpu',
-		'navigator.permissions',
-		'navigator.platform',
-		'navigator.plugins',
-		'navigator.properties',
-		'navigator.system',
-		'navigator.uaPostReduction',
-		'navigator.userAgent',
-		'navigator.userAgentData',
-		'navigator.userAgentParsed',
-		'navigator.vendor',
-		'navigator.webgpu',
-		'offlineAudioContext.binsSample',
-		'offlineAudioContext.compressorGainReduction',
-		'offlineAudioContext.copySample',
-		'offlineAudioContext.floatFrequencyDataSum',
-		'offlineAudioContext.floatTimeDomainDataSum',
-		'offlineAudioContext.noise',
-		'offlineAudioContext.sampleSum',
-		'offlineAudioContext.totalUniqueSamples',
-		'offlineAudioContext.values',
-		'resistance.engine',
-		'resistance.extension',
-		'resistance.extensionHashPattern',
-		'resistance.mode',
-		'resistance.privacy',
-		'resistance.security',
-		'screen.availHeight',
-		'screen.availWidth',
-		'screen.colorDepth',
-		'screen.height',
-		'screen.pixelDepth',
-		'screen.touch',
-		'screen.width',
-		'svg.bBox',
-		'svg.computedTextLength',
-		'svg.emojiSet',
-		'svg.extentOfChar',
-		'svg.subStringLength',
-		'svg.svgrectSystemSum',
-		'timezone.location',
-		'timezone.locationEpoch',
-		'timezone.locationMeasured',
-		'timezone.offset',
-		'timezone.offsetComputed',
-		'timezone.zone',
-		'trash.trashBin',
-		'voices.defaultVoiceLang',
-		'voices.defaultVoiceName',
-		'voices.languages',
-		'voices.local',
-		'voices.remote',
-		'windowFeatures.apple',
-		'windowFeatures.keys',
-		'windowFeatures.moz',
-		'windowFeatures.webkit',
-		'workerScope.device',
-		'workerScope.deviceMemory',
-		'workerScope.engineCurrencyLocale',
-		'workerScope.gpu',
-		'workerScope.hardwareConcurrency',
-		'workerScope.language',
-		'workerScope.languages',
-		'workerScope.lies',
-		'workerScope.locale',
-		'workerScope.localeEntropyIsTrusty',
-		'workerScope.localeIntlEntropyIsTrusty',
-		'workerScope.platform',
-		'workerScope.system',
-		'workerScope.systemCurrencyLocale',
-		'workerScope.timezoneLocation',
-		'workerScope.timezoneOffset',
-		'workerScope.uaPostReduction',
-		'workerScope.userAgent',
-		'workerScope.userAgentData',
-		'workerScope.userAgentDataVersion',
-		'workerScope.userAgentEngine',
-		'workerScope.userAgentVersion',
-		'workerScope.webglRenderer',
-		'workerScope.webglVendor',
-	]
-	// construct map of all metrics
-	const metricsAll = Object.keys(fp).sort().reduce((acc, sectionKey) => {
-		const section = fp[sectionKey]
-		const sectionMetrics = Object.keys(section || {}).sort().reduce((acc, key) => {
-			if (key == '$hash' || key == 'lied') {
-				return acc
+		"canvasWebgl.parameterOrExtensionLie",
+		"canvasWebgl.parameters.antialias",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.HIGH_FLOAT.precision",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.HIGH_FLOAT.rangeMax",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.HIGH_FLOAT.rangeMin",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.HIGH_INT.precision",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.HIGH_INT.rangeMax",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.HIGH_INT.rangeMin",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.LOW_FLOAT.precision",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.LOW_FLOAT.rangeMax",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.LOW_FLOAT.rangeMin",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.MEDIUM_FLOAT.precision",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.MEDIUM_FLOAT.rangeMax",
+		"canvasWebgl.parameters.FRAGMENT_SHADER.MEDIUM_FLOAT.rangeMin",
+		"canvasWebgl.parameters.MAX_3D_TEXTURE_SIZE",
+		"canvasWebgl.parameters.MAX_ARRAY_TEXTURE_LAYERS",
+		"canvasWebgl.parameters.MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS",
+		"canvasWebgl.parameters.MAX_COMBINED_TEXTURE_IMAGE_UNITS",
+		"canvasWebgl.parameters.MAX_COMBINED_UNIFORM_BLOCKS",
+		"canvasWebgl.parameters.MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS",
+		"canvasWebgl.parameters.MAX_CUBE_MAP_TEXTURE_SIZE",
+		"canvasWebgl.parameters.MAX_DRAW_BUFFERS",
+		"canvasWebgl.parameters.MAX_DRAW_BUFFERS_WEBGL",
+		"canvasWebgl.parameters.MAX_ELEMENT_INDEX",
+		"canvasWebgl.parameters.MAX_ELEMENTS_INDICES",
+		"canvasWebgl.parameters.MAX_ELEMENTS_VERTICES",
+		"canvasWebgl.parameters.MAX_FRAGMENT_INPUT_COMPONENTS",
+		"canvasWebgl.parameters.MAX_FRAGMENT_UNIFORM_BLOCKS",
+		"canvasWebgl.parameters.MAX_FRAGMENT_UNIFORM_COMPONENTS",
+		"canvasWebgl.parameters.MAX_FRAGMENT_UNIFORM_VECTORS",
+		"canvasWebgl.parameters.MAX_PROGRAM_TEXEL_OFFSET",
+		"canvasWebgl.parameters.MAX_RENDERBUFFER_SIZE",
+		"canvasWebgl.parameters.MAX_SAMPLES",
+		"canvasWebgl.parameters.MAX_SERVER_WAIT_TIMEOUT",
+		"canvasWebgl.parameters.MAX_TEXTURE_IMAGE_UNITS",
+		"canvasWebgl.parameters.MAX_TEXTURE_LOD_BIAS",
+		"canvasWebgl.parameters.MAX_TEXTURE_MAX_ANISOTROPY_EXT",
+		"canvasWebgl.parameters.MAX_TEXTURE_SIZE",
+		"canvasWebgl.parameters.MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS",
+		"canvasWebgl.parameters.MAX_TRANSFORM_FEEDBACK_SEPARATE_ATTRIBS",
+		"canvasWebgl.parameters.MAX_TRANSFORM_FEEDBACK_SEPARATE_COMPONENTS",
+		"canvasWebgl.parameters.MAX_UNIFORM_BLOCK_SIZE",
+		"canvasWebgl.parameters.MAX_UNIFORM_BUFFER_BINDINGS",
+		"canvasWebgl.parameters.MAX_VARYING_COMPONENTS",
+		"canvasWebgl.parameters.MAX_VARYING_VECTORS",
+		"canvasWebgl.parameters.MAX_VERTEX_ATTRIBS",
+		"canvasWebgl.parameters.MAX_VERTEX_OUTPUT_COMPONENTS",
+		"canvasWebgl.parameters.MAX_VERTEX_TEXTURE_IMAGE_UNITS",
+		"canvasWebgl.parameters.MAX_VERTEX_UNIFORM_BLOCKS",
+		"canvasWebgl.parameters.MAX_VERTEX_UNIFORM_COMPONENTS",
+		"canvasWebgl.parameters.MAX_VERTEX_UNIFORM_VECTORS",
+		"canvasWebgl.parameters.STENCIL_BACK_VALUE_MASK",
+		"canvasWebgl.parameters.STENCIL_BACK_WRITEMASK",
+		"canvasWebgl.parameters.STENCIL_VALUE_MASK",
+		"canvasWebgl.parameters.STENCIL_WRITEMASK",
+		"canvasWebgl.parameters.SUBPIXEL_BITS",
+		"canvasWebgl.parameters.UNMASKED_VENDOR_WEBGL",
+		"canvasWebgl.parameters.VERTEX_SHADER.HIGH_FLOAT.rangeMax",
+		"canvasWebgl.parameters.VERTEX_SHADER.HIGH_FLOAT.rangeMin",
+		"canvasWebgl.parameters.VERTEX_SHADER.HIGH_INT.precision",
+		"canvasWebgl.parameters.VERTEX_SHADER.HIGH_INT.rangeMax",
+		"canvasWebgl.parameters.VERTEX_SHADER.HIGH_INT.rangeMin",
+		"canvasWebgl.parameters.VERTEX_SHADER.LOW_FLOAT.precision",
+		"canvasWebgl.parameters.VERTEX_SHADER.LOW_FLOAT.rangeMax",
+		"canvasWebgl.parameters.VERTEX_SHADER.LOW_FLOAT.rangeMin",
+		"canvasWebgl.parameters.VERTEX_SHADER.MEDIUM_FLOAT.precision",
+		"canvasWebgl.parameters.VERTEX_SHADER.MEDIUM_FLOAT.rangeMax",
+		"canvasWebgl.parameters.VERTEX_SHADER.MEDIUM_FLOAT.rangeMin",
+		"canvasWebgl.pixels",
+		"canvasWebgl.pixels2",
+		"cssMedia.anyHover",
+		"cssMedia.anyPointer",
+		"cssMedia.colorGamut",
+		"cssMedia.colorScheme",
+		"cssMedia.forcedColors",
+		"cssMedia.hover",
+		"cssMedia.invertedColors",
+		"cssMedia.monochrome",
+		"cssMedia.pointer",
+		"cssMedia.reducedMotion",
+		"forceRenew",
+		"navigator.device",
+		"navigator.hardwareConcurrency",
+		"navigator.maxTouchPoints",
+		"offlineAudioContext.totalUniqueSamples",
+		"offlineAudioContext.values.AnalyserNode.channelCount",
+		"offlineAudioContext.values.AnalyserNode.channelCountMode",
+		"offlineAudioContext.values.AnalyserNode.channelInterpretation",
+		"offlineAudioContext.values.AnalyserNode.context.sampleRate",
+		"offlineAudioContext.values.AnalyserNode.fftSize",
+		"offlineAudioContext.values.AnalyserNode.frequencyBinCount",
+		"offlineAudioContext.values.AnalyserNode.maxDecibels",
+		"offlineAudioContext.values.AnalyserNode.minDecibels",
+		"offlineAudioContext.values.AnalyserNode.numberOfInputs",
+		"offlineAudioContext.values.AnalyserNode.numberOfOutputs",
+		"offlineAudioContext.values.AnalyserNode.smoothingTimeConstant",
+		"offlineAudioContext.values.BiquadFilterNode.frequency.defaultValue",
+		"offlineAudioContext.values.BiquadFilterNode.frequency.maxValue",
+		"offlineAudioContext.values.DynamicsCompressorNode.attack.defaultValue",
+		"offlineAudioContext.values.DynamicsCompressorNode.knee.defaultValue",
+		"offlineAudioContext.values.DynamicsCompressorNode.knee.maxValue",
+		"offlineAudioContext.values.DynamicsCompressorNode.ratio.defaultValue",
+		"offlineAudioContext.values.DynamicsCompressorNode.ratio.maxValue",
+		"offlineAudioContext.values.DynamicsCompressorNode.release.defaultValue",
+		"offlineAudioContext.values.DynamicsCompressorNode.release.maxValue",
+		"offlineAudioContext.values.DynamicsCompressorNode.threshold.defaultValue",
+		"offlineAudioContext.values.DynamicsCompressorNode.threshold.minValue",
+		"offlineAudioContext.values.OscillatorNode.frequency.defaultValue",
+		"offlineAudioContext.values.OscillatorNode.frequency.maxValue",
+		"offlineAudioContext.values.OscillatorNode.frequency.minValue",
+		"timezone.lied",
+		"timezone.locationMeasured"		
+	];
+
+
+	function extractPropertiesToString(paths, obj) {
+		return paths.reduce((acc, path) => {
+			const keys = path.split('.');
+			let value = keys.reduce((o, key) => (o && o[key] !== undefined) ? o[key] : null, obj);
+			
+			if (value === null) {
+				value = ""; // Default message for non-existent properties
 			}
-			return {...acc, [`${sectionKey}.${key}`]: section[key] }
-		}, {})
-		return {...acc, ...sectionMetrics}
-	}, {})
+	  
+			return `${acc}${String(value)} `; // Concatenate the values with a space separator
+		}, '').trim(); // Remove trailing space
+	  }
 
-	// reduce to 64 bins
-	const maxBins = 64
-	const metricKeysReported = Object.keys(metricsAll)
-	const binSize = Math.ceil(metricKeys.length/maxBins)
+	  let returnData = extractPropertiesToString(metricKeys, fp);
 
-	// update log
-	const devMode = window.location.host != 'abrahamjuliot.github.io'
-	if (devMode && (''+metricKeysReported != ''+metricKeys)) {
-		const newKeys = metricKeysReported.filter((key) => !metricKeys.includes(key))
-		const oldKeys = metricKeys.filter((key) => !metricKeysReported.includes(key))
+	  let hashData = await sha1Hash(returnData);
 
-		if (newKeys.length || oldKeys.length) {
-			newKeys.length && console.warn('added fuzzy key(s):\n', newKeys.join('\n'))
-			oldKeys.length && console.warn('removed fuzzy key(s):\n', oldKeys.join('\n'))
-
-			console.groupCollapsed('update keys for accurate fuzzy hashing:')
-			console.log(metricKeysReported.map((x) => `'${x}',`).join('\n'))
-			console.groupEnd()
-		}
-	}
-
-	// compute fuzzy fingerprint master
-	const fuzzyFpMaster = metricKeys.reduce((acc, key, index) => {
-		if (!index || ((index % binSize) == 0)) {
-			const keySet = metricKeys.slice(index, index + binSize)
-			return {...acc, [''+keySet]: keySet.map((key) => metricsAll[key]) }
-		}
-		return acc
-	}, {})
-
-	// hash each bin
-	await Promise.all(
-		Object.keys(fuzzyFpMaster).map((key) => hashify(fuzzyFpMaster[key]).then((hash) => {
-			fuzzyFpMaster[key] = hash // swap values for hash
-			return hash
-		})),
-	)
-
-	// create fuzzy hash
-	const fuzzyBits = 64
-	const fuzzyFingerprint = Object.keys(fuzzyFpMaster)
-		.map((key) => fuzzyFpMaster[key][0])
-		.join('')
-		.padEnd(fuzzyBits, '0')
-
-	return fuzzyFingerprint
+	  return hashData;
 }
 
 export { hashMini, instanceId, hashify, getBotHash, getFuzzyHash, cipher }
