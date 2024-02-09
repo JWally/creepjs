@@ -33,9 +33,33 @@
         console.log(that);
         let flat = flattenObject(that.creep);
 
+        let testArray = [
+            "canvasWebgl.parameters.MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS",
+            "canvasWebgl.parameters.MAX_COLOR_ATTACHMENTS",
+            "canvasWebgl.parameters.MAX_DRAW_BUFFERS_WEBGL",
+            "canvasWebgl.parameters.MAX_DRAW_BUFFERS",
+            "canvasWebgl.parameters.MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS",
+            "canvasWebgl.parameters.MAX_SAMPLES",
+            "canvasWebgl.parameters.MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS",
+            "canvasWebgl.parameters.MAX_UNIFORM_BLOCK_SIZE",
+            "canvasWebgl.parameters.MAX_VARYING_COMPONENTS",
+            //"canvasWebgl.parameters.MAX_VERTEX_OUTPUT_COMPONENTS",
+            //"canvasWebgl.parameters.MAX_VERTEX_UNIFORM_COMPONENTS",
+            "cssMedia.invertedColors",
+            "cssMedia.hover",
+            "cssMedia.forcedColors",
+            "cssMedia.colorScheme",
+            "cssMedia.colorGamut",
+            "cssMedia.anyPointer",
+            "cssMedia.anyHover",
+            "navigator.device",
+            "navigator.system",
+            "navigator.platform",
+        ]
+
         Object.keys(flat).sort((a,b) => {return a > b ? -1 : 1}).forEach((key) => {
             if(typeof flat[key] !== "object"){
-                if(1 === 1){
+                if(testArray.includes(key)){
                     let el = document.createElement("p");
                     el.innerText = `${key}: ${flat[key]}`;
                     document.querySelector("#output").appendChild(el);
