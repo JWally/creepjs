@@ -59,7 +59,7 @@
 
         Object.keys(flat).sort((a,b) => {return a > b ? -1 : 1}).forEach((key) => {
             if(typeof flat[key] !== "object"){
-                if(testArray.includes(key)){
+                if(1 === 1){
                     let el = document.createElement("p");
                     el.innerText = `${key}: ${flat[key]}`;
                     document.querySelector("#output").appendChild(el);

@@ -4301,42 +4301,28 @@
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       return hashHex;
   }
-  const getFuzzyHash = async (fp) => {
-      const metricKeys = [
-          "canvasWebgl.parameters.MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS",
-          "canvasWebgl.parameters.MAX_COLOR_ATTACHMENTS",
-          "canvasWebgl.parameters.MAX_DRAW_BUFFERS_WEBGL",
-          "canvasWebgl.parameters.MAX_DRAW_BUFFERS",
-          "canvasWebgl.parameters.MAX_COMBINED_VERTEX_UNIFORM_COMPONENTS",
-          "canvasWebgl.parameters.MAX_SAMPLES",
-          "canvasWebgl.parameters.MAX_TRANSFORM_FEEDBACK_INTERLEAVED_COMPONENTS",
-          "canvasWebgl.parameters.MAX_UNIFORM_BLOCK_SIZE",
-          "canvasWebgl.parameters.MAX_VARYING_COMPONENTS",
-          //"canvasWebgl.parameters.MAX_VERTEX_OUTPUT_COMPONENTS",
-          //"canvasWebgl.parameters.MAX_VERTEX_UNIFORM_COMPONENTS",
-          "cssMedia.invertedColors",
-          "cssMedia.hover",
-          "cssMedia.forcedColors",
-          "cssMedia.colorScheme",
-          "cssMedia.colorGamut",
-          "cssMedia.anyPointer",
-          "cssMedia.anyHover",
-          "navigator.device",
-          "navigator.system",
-          "navigator.platform",
-      ];
-      function extractPropertiesToString(paths, obj) {
-          return paths.reduce((acc, path) => {
-              const keys = path.split('.');
-              let value = keys.reduce((o, key) => (o && o[key] !== undefined) ? o[key] : null, obj);
-              if (value === null) {
-                  value = ""; // Default message for non-existent properties
-              }
-              return `${acc}${String(value)} `; // Concatenate the values with a space separator
-          }, '').trim(); // Remove trailing space
+  function checkWebGL() {
+      // Try to create a WebGL context
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) {
+          return "";
       }
-      let returnData = extractPropertiesToString(metricKeys, fp);
-      let hashData = await sha1Hash(returnData);
+      else {
+          // Get and log information about the WebGL context
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+              return gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+          }
+          else {
+              return "";
+          }
+      }
+  }
+  const getFuzzyHash = async (fp) => {
+      let system = fp?.navigator?.system;
+      let glData = checkWebGL();
+      let hashData = await sha1Hash(`${system}${glData}`);
       return hashData;
   };
 
